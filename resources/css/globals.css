@@ -1,0 +1,198 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* ============================================================
+   SIMPEL DBI — Global CSS
+   Design System: Design.md (OKLCH tokens, Tailwind v4 CSS-first)
+   Aturan: RULES.md Section 2 (NO tailwind.config.ts untuk tema)
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   LAYER 1: DESIGN TOKENS (Light Mode)
+   Semua nilai hex dari Design.md dikonversi ke OKLCH
+   ------------------------------------------------------------ */
+:root {
+  /* --- Brand Colors --- */
+  --primary: oklch(0.329 0.099 253.2);           /* #033566 — Navy utama */
+  --primary-foreground: oklch(1 0 0);             /* #FFFFFF */
+  --primary-hover: oklch(0.37 0.10 253.2);        /* #04407D */
+
+  --secondary: oklch(0.827 0.109 83.3);           /* #E8C070 — Gold aksen */
+  --secondary-foreground: oklch(0.24 0.03 83);    /* #1A1300 */
+  --secondary-hover: oklch(0.78 0.11 83.3);       /* #DDB05A */
+
+  /* --- Neutral / Base --- */
+  --background: oklch(1 0 0);                     /* #FFFFFF */
+  --foreground: oklch(0.145 0.01 285.9);          /* #0B1220 */
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0.01 285.9);
+
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0.01 285.9);
+
+  --muted: oklch(0.97 0.002 247.84);
+  --muted-foreground: oklch(0.554 0.015 264.4);
+
+  --accent: oklch(0.97 0.002 247.84);
+  --accent-foreground: oklch(0.205 0.006 285.9);
+
+  --destructive: oklch(0.577 0.245 27.3);         /* Error merah */
+  --destructive-foreground: oklch(1 0 0);
+
+  --border: oklch(0.917 0.004 264.5);             /* #E5E7EB */
+  --input: oklch(0.917 0.004 264.5);              /* #D1D5DB */
+  --ring: oklch(0.329 0.099 253.2);               /* Focus ring = primary */
+
+  /* --- Status Semantik Domain SIMPEL DBI (RULES.md Section 4) --- */
+  --status-aman: oklch(0.63 0.17 149);            /* #16A34A — Hijau */
+  --status-aman-foreground: oklch(1 0 0);
+  --status-perlu-pembinaan: var(--secondary);     /* #E8C070 — Gold (reuse) */
+  --status-perlu-pembinaan-foreground: var(--secondary-foreground);
+  --status-aduan: oklch(0.58 0.22 27);            /* #DC2626 — Merah */
+  --status-aduan-foreground: oklch(1 0 0);
+  --sla-redflag: var(--status-aduan);             /* Alias — sama dg status-aduan */
+  --sla-redflag-foreground: oklch(1 0 0);
+
+  /* --- Table Header (Design.md) --- */
+  --table-header-bg: oklch(0.984 0.003 247.9);    /* #F8FAFC */
+  --table-header-fg: oklch(0.376 0.021 264.0);    /* #334155 */
+
+  /* --- Radius (Design.md) --- */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+}
+
+/* ------------------------------------------------------------
+   LAYER 1: DESIGN TOKENS (Dark Mode)
+   ------------------------------------------------------------ */
+.dark {
+  --primary: oklch(0.72 0.10 253.2);
+  --primary-foreground: oklch(0.14 0.02 253);
+  --primary-hover: oklch(0.77 0.10 253.2);
+
+  --secondary: oklch(0.78 0.10 83.3);
+  --secondary-foreground: oklch(0.18 0.02 83);
+
+  --background: oklch(0.145 0.01 285.9);
+  --foreground: oklch(0.985 0 0);
+
+  --card: oklch(0.205 0.006 285.9);
+  --card-foreground: oklch(0.985 0 0);
+
+  --popover: oklch(0.205 0.006 285.9);
+  --popover-foreground: oklch(0.985 0 0);
+
+  --muted: oklch(0.269 0.007 264.4);
+  --muted-foreground: oklch(0.705 0.012 264.5);
+
+  --accent: oklch(0.269 0.007 264.4);
+  --accent-foreground: oklch(0.985 0 0);
+
+  --destructive: oklch(0.704 0.191 22.2);
+  --destructive-foreground: oklch(0.145 0.01 285.9);
+
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.72 0.10 253.2);
+
+  /* Status semantik dark */
+  --status-aman: oklch(0.7 0.16 149);
+  --status-aman-foreground: oklch(0.145 0.01 285.9);
+  --status-aduan: oklch(0.65 0.20 27);
+  --status-aduan-foreground: oklch(0.145 0.01 285.9);
+
+  --table-header-bg: oklch(0.23 0.008 264.4);
+  --table-header-fg: oklch(0.75 0.015 264.5);
+}
+
+/* ------------------------------------------------------------
+   LAYER 1: TAILWIND v4 @theme inline
+   Ekspos token ke utility classes Tailwind (RULES.md Section 2)
+   ------------------------------------------------------------ */
+@theme inline {
+  /* Warna brand & base */
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Warna status domain SIMPEL DBI */
+  --color-status-aman: var(--status-aman);
+  --color-status-aman-foreground: var(--status-aman-foreground);
+  --color-status-perlu-pembinaan: var(--status-perlu-pembinaan);
+  --color-status-perlu-pembinaan-foreground: var(--status-perlu-pembinaan-foreground);
+  --color-status-aduan: var(--status-aduan);
+  --color-status-aduan-foreground: var(--status-aduan-foreground);
+  --color-sla-redflag: var(--sla-redflag);
+  --color-sla-redflag-foreground: var(--sla-redflag-foreground);
+
+  /* Tabel */
+  --color-table-header: var(--table-header-bg);
+  --color-table-header-foreground: var(--table-header-fg);
+
+  /* Tipografi (Design.md) */
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* Radius */
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-full: var(--radius-full);
+
+  /* shadcn-vue compat aliases */
+  --radius: var(--radius-md);
+}
+
+/* ------------------------------------------------------------
+   LAYER 2: BASE STYLES
+   ------------------------------------------------------------ */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Tabular nums untuk angka di tabel/dashboard (RULES.md Section 5) */
+  .tabular-nums,
+  [data-tabular-nums] {
+    font-variant-numeric: tabular-nums;
+    font-family: var(--font-mono);
+  }
+
+  /* Pastikan prefers-reduced-motion dihormati (RULES.md Section 8) */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

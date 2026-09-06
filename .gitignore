@@ -1,0 +1,59 @@
+# Environment Files (Kredensial & Server Config Sensitif)
+.env
+.env.*
+!.env.example
+*.env
+
+# Dependencies & Build Output
+/node_modules
+/vendor
+/public/build
+/public/hot
+/public/storage
+
+# Storage Uploads & Temporary Cache (Privasi Berkas Laporan)
+/storage/app/*
+!/storage/app/.gitignore
+/storage/app/public/*
+!/storage/app/public/.gitignore
+/storage/app/public/lampiran
+/storage/app/public/lampiran/*
+/storage/app/private/*
+!/storage/app/private/.gitignore
+/storage/framework/cache/*
+!/storage/framework/cache/.gitignore
+/storage/framework/sessions/*
+!/storage/framework/sessions/.gitignore
+/storage/framework/testing/*
+!/storage/framework/testing/.gitignore
+/storage/framework/views/*
+!/storage/framework/views/.gitignore
+/storage/logs/*
+!/storage/logs/.gitignore
+/storage/*.key
+/storage/pail
+
+# System Logs & Caches
+*.log
+.phpunit.result.cache
+/.phpunit.cache
+.phpactor.json
+/auth.json
+
+# IDE & OS Specific Files
+.DS_Store
+Thumbs.db
+desktop.ini
+/.vscode
+/.idea
+/.fleet
+/.nova
+/.zed
+/.gemini
+Homestead.json
+Homestead.yaml
+
+# Local Testing Scratch Pad & Temporary Files
+scratch/
+temp/
+tmp/

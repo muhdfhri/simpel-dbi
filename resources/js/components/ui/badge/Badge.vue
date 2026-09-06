@@ -1,0 +1,28 @@
+<script setup lang="ts">
+import type { HTMLAttributes } from 'vue'
+import { Primitive } from 'reka-ui'
+import { type BadgeVariants, badgeVariants } from '.'
+import { cn } from '@/lib/utils'
+
+interface Props {
+  variant?: BadgeVariants['variant']
+  class?: HTMLAttributes['class']
+  asChild?: boolean
+  as?: any
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  as: 'span',
+})
+</script>
+
+<template>
+  <Primitive
+    data-slot="badge"
+    :as="as"
+    :as-child="asChild"
+    :class="cn(badgeVariants({ variant }), props.class)"
+  >
+    <slot />
+  </Primitive>
+</template>

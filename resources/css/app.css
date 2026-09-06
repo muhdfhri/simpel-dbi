@@ -1,0 +1,342 @@
+/* ============================================================
+   SIMPEL DBI — Global CSS
+   Sumber: Design.md + shadcn-vue init (Reka UI, Nova style, Neutral base)
+   Stack: Tailwind v4 CSS-first · OKLCH color tokens · Inter font
+   ============================================================ */
+
+/* --- Fonts --- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&family=JetBrains+Mono:wght@500&display=swap');
+
+/* --- Tailwind v4 + shadcn-vue animate --- */
+@import 'tailwindcss';
+@import "tw-animate-css";
+
+/* --- Tailwind dark mode via class strategy --- */
+@custom-variant dark (&:is(.dark *));
+
+/* --- Sumber scan Tailwind (Blade + JS) --- */
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+@source '../**/*.ts';
+@source '../**/*.vue';
+
+/* ============================================================
+   LAYER 1: shadcn-vue base tokens (radius, sidebar, chart)
+   ============================================================ */
+@theme {
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+@theme inline {
+    /* Tipografi */
+    --font-heading: var(--font-sans);
+
+    /* Warna semantic shadcn (dipetakan dari CSS vars di :root) */
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-destructive: var(--destructive);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+
+    /* Chart colors (shadcn default) */
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-4: var(--chart-4);
+    --color-chart-5: var(--chart-5);
+
+    /* Sidebar colors (shadcn) */
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
+
+    /* ---- SIMPEL DBI Domain Tokens (RULES.md Section 4) ---- */
+    --color-status-aman: var(--status-aman);
+    --color-status-aman-foreground: var(--status-aman-foreground);
+    --color-status-perlu-pembinaan: var(--status-perlu-pembinaan);
+    --color-status-perlu-pembinaan-foreground: var(--status-perlu-pembinaan-foreground);
+    --color-status-aduan: var(--status-aduan);
+    --color-status-aduan-foreground: var(--status-aduan-foreground);
+    --color-sla-redflag: var(--sla-redflag);
+    --color-sla-redflag-foreground: var(--sla-redflag-foreground);
+    --color-table-header: var(--table-header-bg);
+    --color-table-header-foreground: var(--table-header-fg);
+
+    /* Radius scale (Design.md: sm=6px, md=10px, lg=16px) */
+    --radius-sm: var(--radius-sm-val);
+    --radius-md: var(--radius-md-val);
+    --radius-lg: var(--radius-lg-val);
+    --radius-xl: calc(var(--radius-lg-val) + 4px);
+    --radius: var(--radius-md-val); /* compat alias shadcn */
+}
+
+/* ============================================================
+   LAYER 2: CSS VARIABLES — Light Mode
+   Brand: Navy #033566 · Gold #E8C070 (Design.md)
+   Base: Neutral (shadcn init --base-color neutral)
+   ============================================================ */
+:root {
+    /* --- Radius (Design.md) --- */
+    --radius-sm-val: 6px;
+    --radius-md-val: 10px;
+    --radius-lg-val: 16px;
+
+    /* --- Brand SIMPEL DBI (Design.md) --- */
+    --primary: oklch(0.329 0.099 253.2);            /* #033566 — Navy */
+    --primary-foreground: oklch(1 0 0);              /* #FFFFFF */
+    --primary-hover: oklch(0.37 0.10 253.2);         /* #04407D */
+
+    --secondary: oklch(0.827 0.109 83.3);            /* #E8C070 — Gold */
+    --secondary-foreground: oklch(0.24 0.03 83);     /* #1A1300 */
+
+    /* --- Base (Neutral) --- */
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0 0);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.556 0 0);
+    --accent: oklch(0.97 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.922 0 0);
+    --input: oklch(0.922 0 0);
+    --ring: oklch(0.329 0.099 253.2);               /* focus ring = primary navy */
+
+    /* --- Chart colors (shadcn default, bisa dikustomisasi nanti) --- */
+    --chart-1: oklch(0.646 0.222 41.116);
+    --chart-2: oklch(0.6 0.118 184.704);
+    --chart-3: oklch(0.398 0.07 227.392);
+    --chart-4: oklch(0.828 0.189 84.429);
+    --chart-5: oklch(0.769 0.188 70.08);
+
+    /* --- Sidebar (reuse primary palette) --- */
+    --sidebar: oklch(0.985 0 0);
+    --sidebar-foreground: oklch(0.145 0 0);
+    --sidebar-primary: oklch(0.329 0.099 253.2);    /* navy */
+    --sidebar-primary-foreground: oklch(1 0 0);
+    --sidebar-accent: oklch(0.97 0 0);
+    --sidebar-accent-foreground: oklch(0.205 0 0);
+    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-ring: oklch(0.329 0.099 253.2);
+
+    /* --- Status Semantik Domain SIMPEL DBI (RULES.md Section 4) --- */
+    --status-aman: oklch(0.63 0.17 149);            /* #16A34A — Hijau */
+    --status-aman-foreground: oklch(1 0 0);
+    --status-perlu-pembinaan: oklch(0.827 0.109 83.3); /* #E8C070 — Gold (= secondary) */
+    --status-perlu-pembinaan-foreground: oklch(0.24 0.03 83);
+    --status-aduan: oklch(0.58 0.22 27);            /* #DC2626 — Merah */
+    --status-aduan-foreground: oklch(1 0 0);
+    --sla-redflag: oklch(0.58 0.22 27);             /* = status-aduan */
+    --sla-redflag-foreground: oklch(1 0 0);
+
+    /* --- Table header (Design.md) --- */
+    --table-header-bg: oklch(0.984 0.003 247.9);    /* #F8FAFC */
+    --table-header-fg: oklch(0.376 0.021 264.0);    /* #334155 */
+}
+
+/* ============================================================
+   LAYER 3: CSS VARIABLES — Dark Mode
+   ============================================================ */
+.dark {
+    --primary: oklch(0.72 0.10 253.2);
+    --primary-foreground: oklch(0.14 0.02 253);
+
+    --secondary: oklch(0.78 0.10 83.3);
+    --secondary-foreground: oklch(0.18 0.02 83);
+
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.72 0.10 253.2);
+
+    --chart-1: oklch(0.488 0.243 264.376);
+    --chart-2: oklch(0.696 0.17 162.48);
+    --chart-3: oklch(0.769 0.188 70.08);
+    --chart-4: oklch(0.627 0.265 303.9);
+    --chart-5: oklch(0.645 0.246 16.439);
+
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.72 0.10 253.2);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.72 0.10 253.2);
+
+    /* Status dark */
+    --status-aman: oklch(0.7 0.16 149);
+    --status-aman-foreground: oklch(0.145 0 0);
+    --status-aduan: oklch(0.65 0.20 27);
+    --status-aduan-foreground: oklch(0.145 0 0);
+    --sla-redflag: oklch(0.65 0.20 27);
+    --sla-redflag-foreground: oklch(0.145 0 0);
+
+    --table-header-bg: oklch(0.23 0.008 264.4);
+    --table-header-fg: oklch(0.75 0.015 264.5);
+}
+
+/* ============================================================
+   LAYER 4: BASE STYLES & SHADCN SONNER FLOATING OVERLAY
+   ============================================================ */
+@layer base {
+    * {
+        @apply border-border outline-ring/50;
+    }
+
+    body {
+        @apply bg-background text-foreground font-sans antialiased;
+    }
+
+    /* Tabular nums untuk angka di tabel/dashboard (RULES.md Section 5) */
+    .tabular-data {
+        font-variant-numeric: tabular-nums;
+        font-family: var(--font-mono);
+    }
+
+    /* prefers-reduced-motion (RULES.md Section 8) */
+    @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+        }
+    }
+}
+
+/* --- Sonner Toast Fixed Floating Overlay (Bottom Right) --- */
+[data-sonner-toaster] {
+    position: fixed !important;
+    z-index: 99999 !important;
+    bottom: 24px !important;
+    right: 24px !important;
+    top: auto !important;
+    left: auto !important;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 8px;
+}
+
+[data-sonner-toast] {
+    position: relative !important;
+    pointer-events: auto;
+    width: 340px !important;
+    max-width: calc(100vw - 32px) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+    padding-right: 36px !important; /* Space agar tidak menutupi teks */
+}
+
+/* Pindahkan Tombol Close X ke POJOK KANAN ATAS */
+[data-sonner-toast] [data-close-button],
+[data-sonner-toast] button[data-close-button],
+[data-sonner-toast] .sonner-close-button {
+    position: absolute !important;
+    top: 12px !important;
+    right: 12px !important;
+    left: auto !important;
+    transform: none !important;
+    order: 99 !important;
+    margin: 0 !important;
+    padding: 4px !important;
+    border-radius: 8px !important;
+    background: transparent !important;
+    border: none !important;
+    color: #94a3b8 !important;
+    cursor: pointer !important;
+    transition: color 0.15s ease, background-color 0.15s ease !important;
+}
+
+[data-sonner-toast] [data-close-button]:hover,
+[data-sonner-toast] button[data-close-button]:hover {
+    color: #1e293b !important;
+    background-color: #f1f5f9 !important;
+}
+
+/* --- Ultra Thin Custom Scrollbar for Sidebar & Scrollable Panes --- */
+.custom-thin-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+}
+
+.custom-thin-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
+
+.custom-thin-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-thin-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 99px;
+}
+
+.custom-thin-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: #94a3b8;
+}
+
+/* ============================================================
+   LAYER 5: GLOBAL UTILITY CLASSES FOR CRUD ACTION BUTTONS
+   ============================================================ */
+@utility btn-action-view {
+    @apply h-8 w-8 p-0 inline-flex items-center justify-center rounded-md bg-sky-50 text-sky-600 border border-sky-200/80 hover:bg-sky-100 hover:text-sky-700 hover:border-sky-300 transition-all shadow-2xs cursor-pointer;
+}
+
+@utility btn-action-edit {
+    @apply h-8 w-8 p-0 inline-flex items-center justify-center rounded-md bg-amber-50 text-amber-600 border border-amber-200/80 hover:bg-amber-100 hover:text-amber-700 hover:border-amber-300 transition-all shadow-2xs cursor-pointer;
+}
+
+@utility btn-action-delete {
+    @apply h-8 w-8 p-0 inline-flex items-center justify-center rounded-md bg-rose-50 text-rose-600 border border-rose-200/80 hover:bg-rose-100 hover:text-rose-700 hover:border-rose-300 transition-all shadow-2xs cursor-pointer;
+}
+
+@utility btn-action-neutral {
+    @apply h-8 w-8 p-0 inline-flex items-center justify-center rounded-md bg-slate-100 text-slate-600 border border-slate-200/80 hover:bg-slate-200 hover:text-slate-800 transition-all shadow-2xs cursor-pointer;
+}
+
+@utility btn-action-neutral-text {
+    @apply h-8 px-2.5 py-1 inline-flex items-center justify-center gap-1.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200/80 hover:bg-slate-200 hover:text-slate-900 transition-all shadow-2xs cursor-pointer font-semibold text-xs whitespace-nowrap;
+}
+
+@utility btn-action-view-text {
+    @apply h-8 px-2.5 py-1 inline-flex items-center justify-center gap-1.5 rounded-md bg-sky-50 text-sky-700 border border-sky-200/80 hover:bg-sky-100 hover:text-sky-800 transition-all shadow-2xs cursor-pointer font-semibold text-xs whitespace-nowrap;
+}
+
+
