@@ -36,6 +36,7 @@ class Laporan extends Model
         'sla_verifikasi_breached',
         'sla_tindak_lanjut_breached',
         'red_flag',
+        'jumlah_teguran',
     ];
 
     protected function casts(): array

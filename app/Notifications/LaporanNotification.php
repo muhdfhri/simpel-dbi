@@ -5,10 +5,11 @@ namespace App\Notifications;
 use App\Models\User;
 use App\Services\NtfyNotificationService;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class LaporanNotification extends Notification
+class LaporanNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -59,8 +60,13 @@ class LaporanNotification extends Notification
             default   => 'Diajukan',
         };
 
+        $subject = "[SIMPEL DBI] {$this->title}";
+        if ($this->kodeTiket && ! str_contains($this->title, $this->kodeTiket)) {
+            $subject .= " — {$this->kodeTiket}";
+        }
+
         return (new MailMessage)
-            ->subject("[SIMPEL DBI] {$this->title} - " . ($this->kodeTiket ?? 'Pemberitahuan'))
+            ->subject($subject)
             ->greeting("Yth. {$notifiable->name},")
             ->line("Bersama surat elektronik ini disampaikan pemberitahuan resmi dari Sistem Pelaporan Desa Binaan Imigrasi (SIMPEL DBI) Kanwil Ditjenim Sumatera Utara mengenai pembaruan status laporan sebagai berikut:")
             ->line("---")

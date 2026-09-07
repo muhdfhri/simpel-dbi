@@ -2,7 +2,6 @@
 import { ref } from 'vue';
 import { useForm, Head, Link } from '@inertiajs/vue3';
 import { Eye, EyeOff, ShieldCheck, Map } from 'lucide-vue-next';
-import { Toaster, toast } from 'vue-sonner';
 
 defineProps<{
     status?: string;
@@ -21,19 +20,12 @@ const submit = () => {
         onFinish: () => {
             form.reset('password');
         },
-        onError: (errors) => {
-            if (errors.email) {
-                toast.error(errors.email);
-            }
-        },
     });
 };
 </script>
 
 <template>
     <Head title="Masuk ke Sistem" />
-
-    <Toaster position="top-right" richColors />
 
     <!-- Full-Screen Split 60/40 Layout (Ultra Clean Bahasa Indonesia Formal) -->
     <div class="h-screen w-screen grid grid-cols-1 lg:grid-cols-10 overflow-hidden bg-white font-sans text-slate-900 selection:bg-slate-900 selection:text-white">
@@ -45,6 +37,8 @@ const submit = () => {
             <img
                 src="/images/Gedung.jpeg"
                 alt="Gedung Imigrasi Sumatera Utara"
+                loading="lazy"
+                decoding="async"
                 class="absolute inset-0 w-full h-full object-cover"
             />
             
@@ -57,6 +51,8 @@ const submit = () => {
                     <img
                         src="/images/logo-kanwil.webp"
                         alt="Logo Kanwil Ditjen Imigrasi Sumut"
+                        loading="lazy"
+                        decoding="async"
                         class="w-full h-full object-contain scale-125"
                     />
                 </div>

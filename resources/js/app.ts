@@ -25,7 +25,8 @@ createInertiaApp({
     },
 
     progress: {
-        color: 'oklch(0.329 0.099 253.2)', // --primary (navy)
-        delay: 250,
+        color: '#0F172A', // bg-slate-900 (Warna Tombol Masuk ke Sistem)
+        delay: 150,
+        showSpinner: false,
     },
 });

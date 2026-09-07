@@ -321,36 +321,43 @@ class MonitoringController extends Controller
     public function tegurSla(Request $request, \App\Models\Laporan $laporan)
     {
         $desa = $laporan->desa;
-        $pimpasaTargets = collect();
+        $targetUptId = $desa?->upt_id;
 
-        if ($desa?->pimpasa_id) {
-            $pimpasaUser = \App\Models\User::find($desa->pimpasa_id);
-            if ($pimpasaUser) $pimpasaTargets->push($pimpasaUser);
-        }
+        // Target Notifikasi: Seluruh Petugas PIMPASA di bawah UPT Pembina Desa tersebut (kolektif/sama rata)
+        $pimpasaTargets = \App\Models\User::where('role', 'pimpasa')
+            ->when($targetUptId, function ($query) use ($targetUptId) {
+                $query->where(function ($q) use ($targetUptId) {
+                    $q->where('upt_id', $targetUptId)->orWhereNull('upt_id');
+                });
+            })
+            ->get();
 
-        if ($pimpasaTargets->isEmpty() && $desa?->upt_id) {
-            $uptPimpasa = \App\Models\User::where('role', 'pimpasa')->where('upt_id', $desa->upt_id)->get();
-            $pimpasaTargets = $pimpasaTargets->merge($uptPimpasa);
+        // Fallback jika belum ada yang terikat UPT: Ambil seluruh Petugas PIMPASA di sistem
+        if ($pimpasaTargets->isEmpty()) {
+            $pimpasaTargets = \App\Models\User::where('role', 'pimpasa')->get();
         }
 
         if ($pimpasaTargets->isEmpty()) {
-            return back()->with('error', 'Petugas PIMPASA penanggung jawab desa ini belum terdaftar.');
+            return back()->with('error', 'Petugas PIMPASA penanggung jawab UPT ini belum terdaftar di dalam sistem.');
         }
 
-        $title = "⚠️ Teguran SLA Kanwil — Tiket {$laporan->kode_tiket}";
+        $title = "Teguran SLA Kanwil — Tiket {$laporan->kode_tiket}";
         $message = "PERINGATAN SLA KANWIL: Laporan {$laporan->kode_tiket} di Desa " . ($desa?->nama ?? 'Binaan') . " telah diajukan > 24 Jam dan belum diverifikasi. Segera tindak lanjuti!";
 
-        foreach ($pimpasaTargets->unique('id') as $pimpasa) {
-            $pimpasa->notify(new \App\Notifications\LaporanNotification(
+        $laporan->increment('jumlah_teguran');
+
+        \Illuminate\Support\Facades\Notification::send(
+            $pimpasaTargets->unique('id'),
+            new \App\Notifications\LaporanNotification(
                 title: $title,
                 message: $message,
                 type: 'urgent',
                 url: "/pimpasa/verifikasi/{$laporan->id}",
                 laporanId: $laporan->id,
                 kodeTiket: $laporan->kode_tiket
-            ));
-        }
+            )
+        );
 
-        return back()->with('success', "Teguran SLA untuk tiket {$laporan->kode_tiket} berhasil dikirimkan ke Petugas PIMPASA.");
+        return back()->with('success', "Teguran SLA untuk tiket {$laporan->kode_tiket} berhasil dikirimkan via In-App, Email & Push Notification ke seluruh Petugas PIMPASA " . ($desa?->upt?->nama ?? 'UPT') . ".");
     }
 }

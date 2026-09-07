@@ -43,6 +43,7 @@ interface SlaIncident {
     hours_elapsed: number;
     hours_remaining: number;
     sla_status: 'terlambat' | 'peringatan' | 'tepat_waktu' | 'breached' | 'warning' | 'on_track';
+    jumlah_teguran?: number;
 }
 
 const props = defineProps<{

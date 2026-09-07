@@ -26,6 +26,7 @@ interface SlaIncident {
     hours_elapsed: number;
     hours_remaining: number;
     sla_status: 'terlambat' | 'peringatan' | 'tepat_waktu' | 'breached' | 'warning' | 'on_track';
+    jumlah_teguran?: number;
 }
 
 const props = defineProps<{
@@ -64,6 +65,7 @@ const processedIncidents = computed(() => {
         else if (sortField.value === 'upt') { valA = a.upt_nama; valB = b.upt_nama; }
         else if (sortField.value === 'desa') { valA = a.desa_nama; valB = b.desa_nama; }
         else if (sortField.value === 'status') { valA = a.sla_status; valB = b.sla_status; }
+        else if (sortField.value === 'teguran') { valA = a.jumlah_teguran ?? 0; valB = b.jumlah_teguran ?? 0; }
 
         if (typeof valA === 'number' && typeof valB === 'number') {
             return sortOrder.value === 'asc' ? valA - valB : valB - valA;
@@ -89,18 +91,25 @@ const formatSlaHours = (val: number | string | undefined | null) => {
     return isNaN(num) ? 0 : num;
 };
 
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 
 const kirimTeguranUpt = (inc: SlaIncident) => {
+    // 1. Optimistic UI Update: Langsung tambahkan jumlah teguran secara instan pada milidetik ke-0
+    const prevCount = inc.jumlah_teguran ?? 0;
+    inc.jumlah_teguran = prevCount + 1;
+
+    // 2. Instant Touch Response Feedback Toast
+    notify.success('Teguran SLA Terkirim!', {
+        description: `Peringatan eskalasi SLA untuk tiket ${inc.nomor_tiket} telah dikirim ke Petugas PIMPASA ${inc.upt_nama}.`
+    });
+
+    // 3. Dispatch Background HTTP Request via Inertia
     router.post(`/kanwil/monitoring/tegur-sla/${inc.id}`, {}, {
         preserveScroll: true,
-        onSuccess: () => {
-            notify.success('Teguran SLA Terkirim!', {
-                description: `Peringatan eskalasi SLA untuk tiket ${inc.nomor_tiket} telah dikirim via In-App, ntfy Push & Email ke Petugas PIMPASA ${inc.upt_nama}.`
-            });
-        },
         onError: () => {
-            notify.error('Gagal Mengirim Teguran SLA', { description: 'Petugas PIMPASA penanggung jawab belum terdaftar.' });
+            // Graceful Rollback jika request server gagal
+            inc.jumlah_teguran = prevCount;
+            notify.error('Gagal Mengirim Teguran SLA', { description: 'Terjadi kesalahan jaringan/sistem. Teguran dibatalkan.' });
         }
     });
 };
@@ -180,12 +189,21 @@ const kirimTeguranUpt = (inc: SlaIncident) => {
                             </div>
                         </th>
 
+                        <th @click="toggleSort('teguran')" class="px-4 py-3.5 text-center cursor-pointer hover:bg-slate-200/60 transition-colors select-none whitespace-nowrap">
+                            <div class="flex items-center justify-center gap-1.5">
+                                <span>Total Teguran</span>
+                                <ArrowUp v-if="sortField === 'teguran' && sortOrder === 'asc'" :size="12" class="text-slate-900" />
+                                <ArrowDown v-else-if="sortField === 'teguran' && sortOrder === 'desc'" :size="12" class="text-slate-900" />
+                                <ArrowUpDown v-else :size="12" class="text-slate-300" />
+                            </div>
+                        </th>
+
                         <th class="px-5 py-3.5 text-center whitespace-nowrap">Aksi Pimpinan</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100 bg-white">
                     <tr v-if="paginatedIncidents.length === 0">
-                        <td colspan="8" class="p-10 text-center text-slate-400 italic font-medium">
+                        <td colspan="9" class="p-10 text-center text-slate-400 italic font-medium">
                             <ShieldAlert :size="32" class="mx-auto mb-2 opacity-40 text-slate-400" />
                             <p class="font-bold text-slate-700 text-xs">Tidak ada data insiden SLA yang cocok dengan filter</p>
                         </td>
@@ -253,6 +271,19 @@ const kirimTeguranUpt = (inc: SlaIncident) => {
                                 class="px-3 py-1 rounded-full text-[11px] font-semibold uppercase border bg-emerald-50 text-emerald-800 border-emerald-200/80 inline-flex items-center gap-1.5 shadow-2xs"
                             >
                                 <CheckCircle2 :size="13" /> TEPAT WAKTU ({{ formatSlaHours(inc.hours_elapsed) }} Jam)
+                            </span>
+                        </td>
+
+                        <!-- Kolom Total Teguran -->
+                        <td class="px-4 py-4 text-center whitespace-nowrap">
+                            <span
+                                v-if="(inc.jumlah_teguran ?? 0) > 0"
+                                class="inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 shadow-2xs tabular-nums"
+                            >
+                                {{ inc.jumlah_teguran }}x Teguran
+                            </span>
+                            <span v-else class="text-slate-400 text-xs font-medium italic">
+                                Belum ditegur
                             </span>
                         </td>
 

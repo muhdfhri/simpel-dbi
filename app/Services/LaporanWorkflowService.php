@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -78,28 +79,32 @@ class LaporanWorkflowService
                 $pimpasaTargets = User::where('role', 'pimpasa')->get();
             }
 
-            foreach ($pimpasaTargets->unique('id') as $pimpasaUser) {
-                $pimpasaUser->notify(new \App\Notifications\LaporanNotification(
+            Notification::send(
+                $pimpasaTargets->unique('id'),
+                new \App\Notifications\LaporanNotification(
                     title: 'Pengajuan Laporan Baru',
                     message: "Desa " . ($desaBinaan?->nama ?? 'Binaan') . " mengajukan laporan baru: {$laporan->kode_tiket}.",
                     type: 'info',
                     url: "/pimpasa/verifikasi/{$laporan->id}",
                     laporanId: $laporan->id,
                     kodeTiket: $laporan->kode_tiket
-                ));
-            }
+                )
+            );
 
             // Broadcast Notifikasi Realtime ke Seluruh Admin Kanwil Executive Monitoring
             $kanwilUsers = User::where('role', 'kanwil')->get();
-            foreach ($kanwilUsers as $kanwil) {
-                $kanwil->notify(new \App\Notifications\LaporanNotification(
-                    title: 'Aduan Masuk Baru (Kanwil)',
-                    message: "Desa " . ($desaBinaan?->nama ?? 'Binaan') . " (UPT " . ($desaBinaan?->upt?->nama ?? '-') . ") mengajukan aduan baru {$laporan->kode_tiket}.",
-                    type: 'info',
-                    url: "/kanwil/monitoring/sla-control",
-                    laporanId: $laporan->id,
-                    kodeTiket: $laporan->kode_tiket
-                ));
+            if ($kanwilUsers->isNotEmpty()) {
+                Notification::send(
+                    $kanwilUsers,
+                    new \App\Notifications\LaporanNotification(
+                        title: 'Aduan Masuk Baru (Kanwil)',
+                        message: "Desa " . ($desaBinaan?->nama ?? 'Binaan') . " (UPT " . ($desaBinaan?->upt?->nama ?? '-') . ") mengajukan aduan baru {$laporan->kode_tiket}.",
+                        type: 'info',
+                        url: "/kanwil/monitoring/sla-control",
+                        laporanId: $laporan->id,
+                        kodeTiket: $laporan->kode_tiket
+                    )
+                );
             }
 
             return $laporan;

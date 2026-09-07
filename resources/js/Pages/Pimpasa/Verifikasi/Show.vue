@@ -110,16 +110,27 @@ const getStatusLabel = (statusStr: string) => {
 
 const submitDecision = (dec: 'diverifikasi' | 'minta_perbaikan' | 'ditolak') => {
     form.keputusan = dec;
+    const prevStatus = props.laporan.status;
+
+    // 1. Optimistic UI Update: Langsung ubah status badge lokal pada milidetik ke-0
+    props.laporan.status = dec;
+
+    // 2. Instant Touch Response Toast
+    const msg = dec === 'diverifikasi'
+        ? 'Laporan berhasil diverifikasi!'
+        : (dec === 'minta_perbaikan' ? 'Permintaan perbaikan telah dikirim ke Perangkat Desa.' : 'Laporan telah ditolak.');
+
+    if (dec === 'diverifikasi') notify.success('Verifikasi Berhasil', { description: msg });
+    else if (dec === 'minta_perbaikan') notify.warning('Minta Perbaikan Terkirim', { description: msg });
+    else notify.error('Laporan Ditolak', { description: msg });
+
+    // 3. Background HTTP Request
     form.post(`/pimpasa/verifikasi/${props.laporan.id}`, {
-        onSuccess: () => {
-            const msg = dec === 'diverifikasi'
-                ? 'Laporan berhasil diverifikasi!'
-                : (dec === 'minta_perbaikan' ? 'Perbaikan data berhasil dikirimkan ke Perangkat Desa.' : 'Laporan telah ditolak.');
-            
-            if (dec === 'diverifikasi') notify.success('Verifikasi Berhasil', { description: msg });
-            else if (dec === 'minta_perbaikan') notify.warning('Minta Perbaikan Sent', { description: msg });
-            else notify.error('Laporan Ditolak', { description: msg });
-        },
+        onError: () => {
+            // Rollback jika terjadi kesalahan server
+            props.laporan.status = prevStatus;
+            notify.error('Gagal Memproses Verifikasi', { description: 'Terjadi kesalahan sistem/jaringan.' });
+        }
     });
 };
 </script>

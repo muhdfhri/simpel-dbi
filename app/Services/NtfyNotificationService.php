@@ -55,13 +55,9 @@ class NtfyNotificationService
             $headers['Actions'] = "view, Buka Tiket, {$fullUrl}";
         }
 
-        if (! empty($user->email)) {
-            $headers['Email'] = $user->email;
-        }
-
         try {
             $ntfyServer = config('services.ntfy.server', 'https://ntfy.sh');
-            $response = Http::timeout(5)
+            $response = Http::timeout(1.5)
                 ->withHeaders($headers)
                 ->withBody($message, 'text/plain')
                 ->post("{$ntfyServer}/{$topic}");

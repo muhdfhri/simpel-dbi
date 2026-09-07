@@ -153,6 +153,7 @@ class MonitoringService
                     'hours_elapsed' => $hoursElapsed,
                     'hours_remaining' => $hoursRemaining,
                     'sla_status' => $slaStatus,
+                    'jumlah_teguran' => $lap->jumlah_teguran ?? 0,
                 ];
             })
             ->toArray();

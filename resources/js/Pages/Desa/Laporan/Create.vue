@@ -152,6 +152,10 @@ const submit = () => {
         return;
     }
 
+    notify.info('Mengirim Laporan...', {
+        description: 'Laporan Anda sedang diproses dan notifikasi asinkron sedang dikirimkan ke Petugas PIMPASA UPT & Kanwil.'
+    });
+
     form.post('/desa/laporan');
 };
 </script>
