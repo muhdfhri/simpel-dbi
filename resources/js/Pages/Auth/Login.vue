@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useForm, Head, Link } from '@inertiajs/vue3';
 import { Eye, EyeOff, ShieldCheck, Map } from 'lucide-vue-next';
 
@@ -8,15 +8,52 @@ defineProps<{
 }>();
 
 const showPassword = ref(false);
+const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAAEq_lhhvjQv_W6RC';
 
 const form = useForm({
     email: '',
     password: '',
     remember: false,
+    cf_turnstile_response: '',
+});
+
+onMounted(() => {
+    // Load Cloudflare Turnstile Script dynamically
+    if (!document.getElementById('cf-turnstile-script')) {
+        const script = document.createElement('script');
+        script.id = 'cf-turnstile-script';
+        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onloadTurnstileCallback';
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+
+        (window as any).onloadTurnstileCallback = () => {
+            if ((window as any).turnstile) {
+                (window as any).turnstile.render('#turnstile-container', {
+                    sitekey: turnstileSiteKey,
+                    callback: (token: string) => {
+                        form.cf_turnstile_response = token;
+                    },
+                    'expired-callback': () => {
+                        form.cf_turnstile_response = '';
+                    },
+                });
+            }
+        };
+    } else if ((window as any).turnstile) {
+        setTimeout(() => {
+            (window as any).turnstile.render('#turnstile-container', {
+                sitekey: turnstileSiteKey,
+                callback: (token: string) => {
+                    form.cf_turnstile_response = token;
+                },
+            });
+        }, 100);
+    }
 });
 
 const submit = () => {
-    form.post('/login', {
+    form.post('/portal-dbi', {
         onFinish: () => {
             form.reset('password');
         },
@@ -184,6 +221,11 @@ const submit = () => {
                         >
                             Lupa Kata Sandi?
                         </Link>
+                    </div>
+
+                    <!-- Cloudflare Turnstile Verification Widget -->
+                    <div class="pt-1 flex justify-center">
+                        <div id="turnstile-container"></div>
                     </div>
 
                     <!-- Tombol Utama Masuk ke Sistem -->

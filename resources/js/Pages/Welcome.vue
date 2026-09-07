@@ -194,14 +194,29 @@ const kategoriDonutOptions = computed(() => ({
     plotOptions: {
         pie: {
             donut: {
-                size: '72%',
+                size: '74%',
                 labels: {
                     show: true,
-                    total: {
+                    name: {
                         show: true,
-                        label: 'Total',
                         fontSize: '12px',
                         fontWeight: 600,
+                        color: '#64748b',
+                        offsetY: -4,
+                    },
+                    value: {
+                        show: true,
+                        fontSize: '22px',
+                        fontWeight: 700,
+                        color: '#0f172a',
+                        offsetY: 4,
+                        formatter: (val: string) => `${val}`,
+                    },
+                    total: {
+                        show: true,
+                        label: 'Total Laporan',
+                        fontSize: '11px',
+                        fontWeight: 700,
                         color: '#64748b',
                         formatter: () => `${props.stats?.total ?? 0} Tiket`,
                     },

@@ -33,8 +33,8 @@ Route::get('/', function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware('guest')->group(function () {
-    Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
-    Route::post('/login', [AuthenticatedSessionController::class, 'store']);
+    Route::get('/portal-dbi', [AuthenticatedSessionController::class, 'create'])->name('login');
+    Route::post('/portal-dbi', [AuthenticatedSessionController::class, 'store']);
 
     // Password Reset 2FA OTP Flow
     Route::get('/forgot-password', [\App\Http\Controllers\Auth\PasswordResetOtpController::class, 'showForgotForm'])->name('forgot-password.show');
@@ -229,4 +229,9 @@ Route::middleware('auth')->group(function () {
         Route::put('/settings/password', [\App\Http\Controllers\Kanwil\KanwilSettingsController::class, 'updatePassword'])->name('settings.password.update');
         Route::put('/settings/notifications', [\App\Http\Controllers\Kanwil\KanwilSettingsController::class, 'updateNotifications'])->name('settings.notifications.update');
     });
+});
+
+// Global Fallback 404 Route (Menangkap seluruh URL yang tidak terdaftar di sistem SIMPEL DBI)
+Route::fallback(function () {
+    return Inertia::render('Errors/404')->toResponse(request())->setStatusCode(404);
 });

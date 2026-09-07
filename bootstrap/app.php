@@ -33,6 +33,10 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpException $e, \Illuminate\Http\Request $request) {
+            if ($e->getStatusCode() === 404) {
+                return \Inertia\Inertia::render('Errors/404')->toResponse($request)->setStatusCode(404);
+            }
+
             if ($e->getStatusCode() === 403) {
                 $roleVal = $request->user()?->role;
                 $roleStr = $roleVal instanceof \App\Enums\UserRole ? $roleVal->value : ($roleVal ?? 'desa');
@@ -40,5 +44,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
                 return redirect()->to($dashboardRoute)->with('warning', 'Hak akses untuk fitur ini sedang dinonaktifkan sementara oleh Administrator Kanwil Ditjen Imigrasi Sumut.');
             }
+        });
+
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, \Illuminate\Http\Request $request) {
+            return \Inertia\Inertia::render('Errors/404')->toResponse($request)->setStatusCode(404);
         });
     })->create();

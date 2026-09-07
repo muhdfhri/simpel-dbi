@@ -21,11 +21,41 @@ class LoginRequest extends FormRequest
             'email' => ['required', 'string', 'email'],
             'password' => ['required', 'string'],
             'remember' => ['boolean'],
+            'cf_turnstile_response' => ['nullable', 'string'],
         ];
     }
 
     public function ensureIsNotRateLimited(): void
     {
+        // Verifikasi Cloudflare Turnstile Token
+        $turnstileSecret = config('services.turnstile.secret', env('TURNSTILE_SECRET_KEY'));
+        $turnstileResponse = $this->input('cf_turnstile_response');
+
+        if ($turnstileSecret) {
+            if (!$turnstileResponse) {
+                throw ValidationException::withMessages([
+                    'email' => 'Silakan selesaikan verifikasi keamanan Cloudflare Turnstile terlebih dahulu.',
+                ]);
+            }
+
+            try {
+                $response = \Illuminate\Support\Facades\Http::asForm()->post('https://challenges.cloudflare.com/turnstile/v0/siteverify', [
+                    'secret' => $turnstileSecret,
+                    'response' => $turnstileResponse,
+                    'remoteip' => $this->ip(),
+                ]);
+
+                if (!$response->json('success')) {
+                    throw ValidationException::withMessages([
+                        'email' => 'Verifikasi keamanan gagal. Silakan muat ulang halaman dan coba lagi.',
+                    ]);
+                }
+            } catch (\Exception $e) {
+                if ($e instanceof ValidationException) throw $e;
+                // Ignore network failure or log warning to prevent blocking user if CF API is unreachable
+            }
+        }
+
         if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
             return;
         }
