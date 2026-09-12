@@ -34,6 +34,7 @@ import {
 } from '@/components/ui/dialog';
 import Combobox from '@/components/ui/combobox/Combobox.vue';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal.vue';
+import PasswordStrengthMeter from '@/components/common/PasswordStrengthMeter.vue';
 import { notify } from '@/lib/toast';
 
 interface PimpasaProps {
@@ -162,8 +163,8 @@ const submitForm = () => {
     const payload = {
         name: pimpasaForm.name,
         email: pimpasaForm.email.toLowerCase().trim(),
-        nip: pimpasaForm.nip.trim(),
-        golongan: pimpasaForm.golongan.trim(),
+        nip: pimpasaForm.nip.trim() || undefined,
+        golongan: pimpasaForm.golongan.trim() || undefined,
         upt_id: parseInt(pimpasaForm.upt_id),
         password: pimpasaForm.password || undefined,
     };
@@ -295,6 +296,15 @@ const resetFilter = () => {
 
                         <th class="px-6 py-3.5">Pangkat / Golongan</th>
 
+                        <th @click="toggleSort('email')" class="px-6 py-3.5 cursor-pointer hover:bg-slate-200/60 transition-colors select-none">
+                            <div class="flex items-center gap-1.5">
+                                <span>Email Akun Login</span>
+                                <ArrowUp v-if="sortField === 'email' && sortOrder === 'asc'" :size="13" class="text-slate-900" />
+                                <ArrowDown v-else-if="sortField === 'email' && sortOrder === 'desc'" :size="13" class="text-slate-900" />
+                                <ArrowUpDown v-else :size="13" class="text-slate-300" />
+                            </div>
+                        </th>
+
                         <th @click="toggleSort('upt')" class="px-6 py-3.5 cursor-pointer hover:bg-slate-200/60 transition-colors select-none">
                             <div class="flex items-center gap-1.5">
                                 <span>Satker UPT Imigrasi</span>
@@ -315,6 +325,7 @@ const resetFilter = () => {
                         <td class="px-6 py-4 font-bold text-slate-900">{{ p.name }}</td>
                         <td class="px-6 py-4 font-mono font-bold text-slate-900">{{ p.nip || '-' }}</td>
                         <td class="px-6 py-4 text-slate-500 font-medium">{{ p.golongan || '-' }}</td>
+                        <td class="px-6 py-4 font-mono text-slate-700 font-medium">{{ p.email }}</td>
                         <td class="px-6 py-4 text-slate-500 font-medium">{{ p.upt?.nama || '-' }}</td>
                         <td class="px-6 py-4 text-center">
                             <div class="flex items-center justify-center gap-1.5">
@@ -391,20 +402,18 @@ const resetFilter = () => {
 
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <Label class="font-semibold text-slate-800 text-xs tracking-tight block mb-1.5">NIP Resmi</Label>
+                            <Label class="font-semibold text-slate-800 text-xs tracking-tight block mb-1.5">NIP Resmi (Opsional)</Label>
                             <Input
                                 v-model="pimpasaForm.nip"
                                 placeholder="1995xxxx"
-                                required
                                 class="h-9 px-3.5 rounded-md border-slate-300 text-xs font-mono shadow-2xs"
                             />
                         </div>
                         <div>
-                            <Label class="font-semibold text-slate-800 text-xs tracking-tight block mb-1.5">Pangkat / Golongan</Label>
+                            <Label class="font-semibold text-slate-800 text-xs tracking-tight block mb-1.5">Pangkat / Golongan (Opsional)</Label>
                             <Input
                                 v-model="pimpasaForm.golongan"
                                 placeholder="Penata Muda / III/a"
-                                required
                                 class="h-9 px-3.5 rounded-md border-slate-300 text-xs shadow-2xs font-sans"
                             />
                         </div>
@@ -440,6 +449,7 @@ const resetFilter = () => {
                             placeholder="******"
                             class="h-9 px-3.5 rounded-md border-slate-300 text-xs shadow-2xs font-sans"
                         />
+                        <PasswordStrengthMeter :password="pimpasaForm.password" />
                     </div>
 
                     <DialogFooter class="-mx-6 sm:-mx-7 px-6 sm:px-7 pt-4 mt-5 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 bg-transparent">

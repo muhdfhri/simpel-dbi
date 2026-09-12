@@ -25,6 +25,7 @@ interface ChartAnalyticsData {
         '1_tahun': TrendItem;
     };
     desaStatusDistribution: {
+        total_desa?: number;
         labels: string[];
         series: number[];
         colors: string[];
@@ -46,6 +47,47 @@ type ChartType = 'area' | 'bar' | 'line';
 
 const selectedTimeframe = ref<TimeframeType>('1_tahun');
 const selectedChartType = ref<ChartType>('area');
+
+const trendChartRef = ref<any>(null);
+const donutChartRef = ref<any>(null);
+const barChartRef = ref<any>(null);
+
+const getChartImages = async () => {
+    try {
+        const getUriWithTimeout = async (chartRef: any) => {
+            if (!chartRef || !chartRef.dataURI) return null;
+            try {
+                // Timeout 500ms agar jika chart belum render sempurna tidak menggantung
+                const res = await Promise.race([
+                    chartRef.dataURI(),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 500))
+                ]) as any;
+                return res?.imgURI || null;
+            } catch (err) {
+                return null;
+            }
+        };
+
+        const [trendImg, donutImg, barImg] = await Promise.all([
+            getUriWithTimeout(trendChartRef.value),
+            getUriWithTimeout(donutChartRef.value),
+            getUriWithTimeout(barChartRef.value),
+        ]);
+
+        return {
+            trendImg,
+            donutImg,
+            barImg,
+        };
+    } catch (e) {
+        console.error('Error capturing chart images:', e);
+        return { trendImg: null, donutImg: null, barImg: null };
+    }
+};
+
+defineExpose({
+    getChartImages,
+});
 
 // Active Trend Dataset based on selectedTimeframe
 const activeTrendData = computed<TrendItem>(() => {
@@ -252,7 +294,7 @@ const desaDonutOptions = computed(() => ({
                         fontSize: '11px',
                         fontWeight: 700,
                         color: '#64748b',
-                        formatter: () => '171 Desa',
+                        formatter: () => `${props.data.desaStatusDistribution.total_desa || 0} Desa`,
                     },
                 },
             },
@@ -402,6 +444,7 @@ const uptBarSeries = computed(() => [
                 <CardContent class="p-4 sm:p-5 overflow-x-auto min-w-0">
                     <div class="min-w-[500px] sm:min-w-0">
                         <VueApexCharts
+                            ref="trendChartRef"
                             :key="`${selectedTimeframe}-${selectedChartType}`"
                             :type="selectedChartType === 'line' ? 'line' : selectedChartType"
                             height="390"
@@ -424,6 +467,7 @@ const uptBarSeries = computed(() => [
 
                 <CardContent class="p-4 sm:p-5 flex-1 flex items-center justify-center overflow-hidden">
                     <VueApexCharts
+                        ref="donutChartRef"
                         type="donut"
                         width="100%"
                         height="320"
@@ -450,6 +494,7 @@ const uptBarSeries = computed(() => [
             <CardContent class="px-4 sm:px-6 pt-3 pb-5 overflow-x-auto min-w-0">
                 <div class="min-w-[550px] sm:min-w-0">
                     <VueApexCharts
+                        ref="barChartRef"
                         type="bar"
                         height="350"
                         :options="(uptBarOptions as any)"

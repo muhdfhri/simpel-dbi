@@ -130,6 +130,10 @@
                 <td><strong>Dicetak Oleh</strong></td>
                 <td>: {{ $pimpinanNama }} (Admin Kanwil)</td>
             </tr>
+            <tr>
+                <td><strong>Periode Filter</strong></td>
+                <td colspan="3">: {{ $periodeText }}</td>
+            </tr>
         </table>
     </div>
 

@@ -16,10 +16,14 @@ class MonitoringController extends Controller
      */
     public function slaControl(Request $request, MonitoringService $monitoringService): Response
     {
+        $tanggalMulai = $request->input('tanggal_mulai');
+        $tanggalSelesai = $request->input('tanggal_selesai');
+
         return Inertia::render('Kanwil/Monitoring/SlaControl', [
             'kpiData' => $monitoringService->getKpiMetrics(),
-            'slaIncidents' => $monitoringService->getSlaIncidents(),
+            'slaIncidents' => $monitoringService->getSlaIncidents($tanggalMulai, $tanggalSelesai),
             'uptListOptions' => Upt::select('id', 'nama')->get(),
+            'filters' => $request->only(['search', 'upt_id', 'sla_status', 'tanggal_mulai', 'tanggal_selesai']),
         ]);
     }
 
@@ -28,10 +32,14 @@ class MonitoringController extends Controller
      */
     public function uptScorecard(Request $request, MonitoringService $monitoringService): Response
     {
+        $tanggalMulai = $request->input('tanggal_mulai');
+        $tanggalSelesai = $request->input('tanggal_selesai');
+
         return Inertia::render('Kanwil/Monitoring/UptScorecard', [
             'kpiData' => $monitoringService->getKpiMetrics(),
-            'uptScorecard' => $monitoringService->getUptScorecards(),
+            'uptScorecard' => $monitoringService->getUptScorecards($tanggalMulai, $tanggalSelesai),
             'uptListOptions' => Upt::select('id', 'nama')->get(),
+            'filters' => $request->only(['search', 'upt_id', 'status', 'tanggal_mulai', 'tanggal_selesai']),
         ]);
     }
 
@@ -41,7 +49,9 @@ class MonitoringController extends Controller
      */
     public function exportSlaExcel(Request $request, MonitoringService $monitoringService)
     {
-        $incidents = $monitoringService->getSlaIncidents();
+        $tanggalMulai = $request->query('tanggal_mulai');
+        $tanggalSelesai = $request->query('tanggal_selesai');
+        $incidents = $monitoringService->getSlaIncidents($tanggalMulai, $tanggalSelesai);
         
         $uptId = $request->query('upt_id');
         $slaStatus = $request->query('sla_status');
@@ -83,7 +93,9 @@ class MonitoringController extends Controller
      */
     public function exportSlaPdf(Request $request, MonitoringService $monitoringService)
     {
-        $incidents = $monitoringService->getSlaIncidents();
+        $tanggalMulai = $request->query('tanggal_mulai');
+        $tanggalSelesai = $request->query('tanggal_selesai');
+        $incidents = $monitoringService->getSlaIncidents($tanggalMulai, $tanggalSelesai);
         
         $uptId = $request->query('upt_id');
         $slaStatus = $request->query('sla_status');
@@ -122,12 +134,22 @@ class MonitoringController extends Controller
 
         $pimpinanNama = $request->user()?->name ?? 'Administrator Kanwil';
 
+        $periodeText = 'Semua Periode';
+        if ($tanggalMulai && $tanggalSelesai) {
+            $periodeText = \Carbon\Carbon::parse($tanggalMulai)->locale('id')->isoFormat('D MMM YYYY') . ' s.d. ' . \Carbon\Carbon::parse($tanggalSelesai)->locale('id')->isoFormat('D MMM YYYY');
+        } elseif ($tanggalMulai) {
+            $periodeText = \Carbon\Carbon::parse($tanggalMulai)->locale('id')->isoFormat('D MMM YYYY') . ' s.d. Selesai';
+        } elseif ($tanggalSelesai) {
+            $periodeText = 's.d. ' . \Carbon\Carbon::parse($tanggalSelesai)->locale('id')->isoFormat('D MMM YYYY');
+        }
+
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.sla-control', [
             'incidents' => array_values($incidents),
             'filterUptNama' => $filterUptNama,
             'filterSlaStatusNama' => $filterSlaStatusNama,
             'pimpinanNama' => $pimpinanNama,
             'tanggalCetak' => date('d F Y, H:i'),
+            'periodeText' => $periodeText,
         ])->setPaper('a4', 'landscape');
 
         return $pdf->download('laporan-kendali-sla-' . date('Y-m-d-His') . '.pdf');
@@ -138,10 +160,20 @@ class MonitoringController extends Controller
      */
     public function kegiatanPembinaan(Request $request, MonitoringService $monitoringService): Response
     {
+        $tanggalMulai = $request->query('tanggal_mulai');
+        $tanggalSelesai = $request->query('tanggal_selesai');
+
         return Inertia::render('Kanwil/Monitoring/KegiatanPembinaan', [
             'kpiMetrics' => $monitoringService->getKegiatanKpiMetrics(),
-            'kegiatanList' => $monitoringService->getKegiatanPembinaanData(),
+            'kegiatanList' => $monitoringService->getKegiatanPembinaanData($tanggalMulai, $tanggalSelesai),
             'uptListOptions' => Upt::select('id', 'nama')->get(),
+            'filters' => [
+                'search' => $request->query('search'),
+                'upt_id' => $request->query('upt_id'),
+                'jenis' => $request->query('jenis'),
+                'tanggal_mulai' => $tanggalMulai,
+                'tanggal_selesai' => $tanggalSelesai,
+            ],
         ]);
     }
 
@@ -150,7 +182,10 @@ class MonitoringController extends Controller
      */
     public function exportKegiatanExcel(Request $request, MonitoringService $monitoringService)
     {
-        $kegiatan = $monitoringService->getKegiatanPembinaanData();
+        $tanggalMulai = $request->query('tanggal_mulai');
+        $tanggalSelesai = $request->query('tanggal_selesai');
+
+        $kegiatan = $monitoringService->getKegiatanPembinaanData($tanggalMulai, $tanggalSelesai);
 
         $uptId = $request->query('upt_id');
         $jenis = $request->query('jenis');
@@ -192,7 +227,10 @@ class MonitoringController extends Controller
      */
     public function exportKegiatanPdf(Request $request, MonitoringService $monitoringService)
     {
-        $kegiatan = $monitoringService->getKegiatanPembinaanData();
+        $tanggalMulai = $request->query('tanggal_mulai');
+        $tanggalSelesai = $request->query('tanggal_selesai');
+
+        $kegiatan = $monitoringService->getKegiatanPembinaanData($tanggalMulai, $tanggalSelesai);
 
         $uptId = $request->query('upt_id');
         $jenis = $request->query('jenis');
@@ -224,11 +262,21 @@ class MonitoringController extends Controller
 
         $pimpinanNama = $request->user()?->name ?? 'Administrator Kanwil';
 
+        $periodeText = 'Semua Periode Data';
+        if ($tanggalMulai && $tanggalSelesai) {
+            $periodeText = date('d/m/Y', strtotime($tanggalMulai)) . ' s/d ' . date('d/m/Y', strtotime($tanggalSelesai));
+        } elseif ($tanggalMulai) {
+            $periodeText = 'Mulai ' . date('d/m/Y', strtotime($tanggalMulai));
+        } elseif ($tanggalSelesai) {
+            $periodeText = 'Sampai ' . date('d/m/Y', strtotime($tanggalSelesai));
+        }
+
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.kegiatan-kanwil', [
             'kegiatanList' => array_values($kegiatan),
             'filterUptNama' => $filterUptNama,
             'pimpinanNama' => $pimpinanNama,
             'tanggalCetak' => date('d F Y, H:i'),
+            'periodeText' => $periodeText,
         ])->setPaper('a4', 'landscape');
 
         return $pdf->download('rekapitulasi-pembinaan-desa-' . date('Y-m-d-His') . '.pdf');
@@ -239,7 +287,9 @@ class MonitoringController extends Controller
      */
     public function exportScorecardExcel(Request $request, MonitoringService $monitoringService)
     {
-        $scorecard = $monitoringService->getUptScorecards();
+        $tanggalMulai = $request->query('tanggal_mulai');
+        $tanggalSelesai = $request->query('tanggal_selesai');
+        $scorecard = $monitoringService->getUptScorecards($tanggalMulai, $tanggalSelesai);
 
         $status = $request->query('status');
         $tipe = $request->query('tipe');
@@ -276,7 +326,9 @@ class MonitoringController extends Controller
      */
     public function exportScorecardPdf(Request $request, MonitoringService $monitoringService)
     {
-        $scorecard = $monitoringService->getUptScorecards();
+        $tanggalMulai = $request->query('tanggal_mulai');
+        $tanggalSelesai = $request->query('tanggal_selesai');
+        $scorecard = $monitoringService->getUptScorecards($tanggalMulai, $tanggalSelesai);
 
         $status = $request->query('status');
         $tipe = $request->query('tipe');
@@ -303,6 +355,15 @@ class MonitoringController extends Controller
 
         $pimpinanNama = $request->user()?->name ?? 'Administrator Kanwil';
 
+        $periodeText = 'Semua Periode';
+        if ($tanggalMulai && $tanggalSelesai) {
+            $periodeText = \Carbon\Carbon::parse($tanggalMulai)->locale('id')->isoFormat('D MMM YYYY') . ' s.d. ' . \Carbon\Carbon::parse($tanggalSelesai)->locale('id')->isoFormat('D MMM YYYY');
+        } elseif ($tanggalMulai) {
+            $periodeText = \Carbon\Carbon::parse($tanggalMulai)->locale('id')->isoFormat('D MMM YYYY') . ' s.d. Selesai';
+        } elseif ($tanggalSelesai) {
+            $periodeText = 's.d. ' . \Carbon\Carbon::parse($tanggalSelesai)->locale('id')->isoFormat('D MMM YYYY');
+        }
+
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.upt-scorecard', [
             'scorecards' => array_values($scorecard),
             'filterStatusNama' => $filterStatusNama,
@@ -310,6 +371,7 @@ class MonitoringController extends Controller
             'user' => $request->user(),
             'generated_at' => date('d F Y, H:i'),
             'tanggalCetak' => date('d F Y, H:i'),
+            'periodeText' => $periodeText,
         ])->setPaper('a4', 'landscape');
 
         return $pdf->download('scorecard-kepatuhan-upt-' . date('Y-m-d-His') . '.pdf');

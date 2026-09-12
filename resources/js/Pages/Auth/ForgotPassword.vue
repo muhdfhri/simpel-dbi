@@ -31,8 +31,16 @@ const isSent = computed(() => Boolean(props.status) || isSubmitted.value);
 <template>
     <Head title="Lupa Kata Sandi" />
 
-    <div class="min-h-screen bg-white flex flex-col justify-center items-center p-4 sm:p-6 lg:p-8 font-sans selection:bg-slate-900 selection:text-white">
+    <div class="min-h-screen bg-white flex flex-col justify-center items-center p-4 sm:p-6 lg:p-8 font-sans selection:bg-slate-900 selection:text-white relative">
         
+        <!-- Top Left Navigation Link -->
+        <div class="absolute top-6 left-6 sm:top-8 sm:left-8">
+            <Link href="/portal-dbi" class="inline-flex items-center text-base font-semibold text-slate-700 hover:text-slate-900 transition-colors gap-2">
+                <ArrowLeft :size="20" class="stroke-[2.5]" />
+                <span>Kembali ke halaman masuk</span>
+            </Link>
+        </div>
+
         <!-- Success / Check Inbox State -->
         <div v-if="isSent" class="flex w-full max-w-sm flex-col items-center gap-4 rounded-2xl border border-slate-400 bg-white p-6 sm:p-8 text-center shadow-[0_10px_25px_-5px_rgba(0,0,0,0.07),0_8px_10px_-6px_rgba(0,0,0,0.03)] font-sans animate-in fade-in zoom-in-95 duration-200">
             <div class="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-700">
@@ -66,7 +74,7 @@ const isSent = computed(() => Boolean(props.status) || isSubmitted.value);
                 </Button>
 
                 <div class="text-center">
-                    <Link href="/login" class="inline-flex items-center text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors">
+                    <Link href="/portal-dbi" class="inline-flex items-center text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors">
                         <ArrowLeft :size="13" class="mr-1" />
                         <span>Kembali ke Halaman Masuk</span>
                     </Link>
@@ -77,9 +85,16 @@ const isSent = computed(() => Boolean(props.status) || isSubmitted.value);
         <!-- Initial Form State (Clean White Background + Raised Card with Crisp High-Contrast Outline) -->
         <div v-else class="w-full max-w-sm bg-white p-6 sm:p-7 rounded-2xl border border-slate-400 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.07),0_8px_10px_-6px_rgba(0,0,0,0.03)]">
             <div class="space-y-4 mb-5">
-                <!-- Icon Badge (Key Icon dari Lucide) -->
-                <div class="w-9 h-9 rounded-full bg-slate-100/90 border border-slate-200/60 flex items-center justify-center text-slate-700">
-                    <Key :size="18" />
+                <!-- Logo Kanwil Badge + Label SIMPEL DBI -->
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-full bg-white flex items-center justify-center p-0.5 shadow-xs border border-slate-200/80 shrink-0 overflow-hidden">
+                        <img
+                            src="/images/logo-kanwil.webp"
+                            alt="Logo Kanwil Ditjen Imigrasi Sumut"
+                            class="w-full h-full object-contain scale-125"
+                        />
+                    </div>
+                    <span class="font-extrabold text-slate-900 text-lg tracking-tight">SIMPEL DBI</span>
                 </div>
 
                 <div class="space-y-1">
@@ -116,13 +131,6 @@ const isSent = computed(() => Boolean(props.status) || isSubmitted.value);
                     <span v-if="form.processing">Mengirimkan...</span>
                     <span v-else>Kirim tautan reset</span>
                 </Button>
-
-                <p class="text-center text-slate-500 text-xs pt-1">
-                    Ingat kata sandi?
-                    <Link href="/login" class="text-slate-900 font-medium underline underline-offset-2 hover:text-slate-700 ml-1">
-                        Kembali ke halaman masuk
-                    </Link>
-                </p>
             </form>
         </div>
 

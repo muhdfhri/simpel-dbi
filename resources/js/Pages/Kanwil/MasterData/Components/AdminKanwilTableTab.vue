@@ -29,6 +29,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal.vue';
+import PasswordStrengthMeter from '@/components/common/PasswordStrengthMeter.vue';
 import { notify } from '@/lib/toast';
 
 interface KanwilUserProps {
@@ -247,15 +248,6 @@ defineExpose({ openTambahModal });
                             </div>
                         </th>
 
-                        <th @click="toggleSort('email')" class="px-6 py-3.5 cursor-pointer hover:bg-slate-200/60 transition-colors select-none">
-                            <div class="flex items-center gap-1.5">
-                                <span>Email Akun Login</span>
-                                <ArrowUp v-if="sortField === 'email' && sortOrder === 'asc'" :size="13" class="text-slate-900" />
-                                <ArrowDown v-else-if="sortField === 'email' && sortOrder === 'desc'" :size="13" class="text-slate-900" />
-                                <ArrowUpDown v-else :size="13" class="text-slate-300" />
-                            </div>
-                        </th>
-
                         <th @click="toggleSort('nip')" class="px-6 py-3.5 cursor-pointer hover:bg-slate-200/60 transition-colors select-none">
                             <div class="flex items-center gap-1.5">
                                 <span>NIP Resmi</span>
@@ -266,6 +258,14 @@ defineExpose({ openTambahModal });
                         </th>
 
                         <th class="px-6 py-3.5">Pangkat / Golongan</th>
+                        <th @click="toggleSort('email')" class="px-6 py-3.5 cursor-pointer hover:bg-slate-200/60 transition-colors select-none">
+                            <div class="flex items-center gap-1.5">
+                                <span>Email Akun Login</span>
+                                <ArrowUp v-if="sortField === 'email' && sortOrder === 'asc'" :size="13" class="text-slate-900" />
+                                <ArrowDown v-else-if="sortField === 'email' && sortOrder === 'desc'" :size="13" class="text-slate-900" />
+                                <ArrowUpDown v-else :size="13" class="text-slate-300" />
+                            </div>
+                        </th>
                         <th class="px-6 py-3.5">No. WhatsApp Operasional</th>
                         <th class="px-6 py-3.5 text-center">Status</th>
                         <th class="px-6 py-3.5 text-center">Aksi</th>
@@ -277,9 +277,9 @@ defineExpose({ openTambahModal });
                             {{ u.id }}
                         </td>
                         <td class="px-6 py-4 font-bold text-slate-900">{{ u.name }}</td>
-                        <td class="px-6 py-4 font-mono text-slate-700 font-medium">{{ u.email }}</td>
                         <td class="px-6 py-4 font-mono font-bold text-slate-900">{{ u.nip || '-' }}</td>
                         <td class="px-6 py-4 text-slate-500 font-medium">{{ u.golongan || '-' }}</td>
+                        <td class="px-6 py-4 font-mono text-slate-700 font-medium">{{ u.email }}</td>
                         <td class="px-6 py-4 text-slate-600 font-mono">{{ u.kontak || '-' }}</td>
                         <td class="px-6 py-4 text-center">
                             <span
@@ -388,7 +388,7 @@ defineExpose({ openTambahModal });
                             />
                         </div>
                         <div>
-                            <Label class="font-semibold text-slate-800 text-xs tracking-tight block mb-1.5">Pangkat / Golongan</Label>
+                            <Label class="font-semibold text-slate-800 text-xs tracking-tight block mb-1.5">Pangkat / Golongan (Opsional)</Label>
                             <Input
                                 v-model="kanwilForm.golongan"
                                 placeholder="Pembina / IV/a"
@@ -415,6 +415,7 @@ defineExpose({ openTambahModal });
                             placeholder="******"
                             class="h-9 px-3.5 rounded-md border-slate-300 text-xs shadow-2xs font-sans"
                         />
+                        <PasswordStrengthMeter :password="kanwilForm.password" />
                     </div>
 
                     <DialogFooter class="-mx-6 sm:-mx-7 px-6 sm:px-7 pt-4 mt-5 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 bg-transparent">

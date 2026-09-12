@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { router } from '@inertiajs/vue3';
 import AppLayout from '@/components/layout/AppLayout.vue';
 import {
     BarChart3,
@@ -18,7 +19,10 @@ import {
     ArrowDown,
     Award,
     Activity,
-    AlertCircle
+    AlertCircle,
+    Calendar,
+    Filter,
+    MapPin
 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,11 +64,20 @@ interface DesaRekapItem {
 const props = defineProps<{
     rekap: RekapProps;
     desaList: DesaRekapItem[];
+    filters?: {
+        search?: string;
+        desa_id?: string;
+        indeks_kerawanan?: string;
+        tanggal_mulai?: string;
+        tanggal_selesai?: string;
+    };
 }>();
 
-const searchInput = ref('');
-const selectedDesa = ref('all');
-const selectedKerawanan = ref('all');
+const searchInput = ref(props.filters?.search || '');
+const selectedDesa = ref(props.filters?.desa_id || 'all');
+const selectedKerawanan = ref(props.filters?.indeks_kerawanan || 'all');
+const tanggalMulai = ref(props.filters?.tanggal_mulai || '');
+const tanggalSelesai = ref(props.filters?.tanggal_selesai || '');
 
 const sortField = ref<string>('id');
 const sortDirection = ref<'asc' | 'desc'>('asc');
@@ -78,14 +91,26 @@ const handleSort = (field: string) => {
     }
 };
 
+const applyFilter = () => {
+    currentPage.value = 1;
+    const params: Record<string, string> = {};
+    if (searchInput.value) params.search = searchInput.value;
+    if (selectedDesa.value && selectedDesa.value !== 'all') params.desa_id = selectedDesa.value;
+    if (selectedKerawanan.value && selectedKerawanan.value !== 'all') params.indeks_kerawanan = selectedKerawanan.value;
+    if (tanggalMulai.value) params.tanggal_mulai = tanggalMulai.value;
+    if (tanggalSelesai.value) params.tanggal_selesai = tanggalSelesai.value;
+
+    router.get('/pimpasa/rekapitulasi', params, { preserveState: true, replace: true });
+};
+
 const onDesaChange = (val: any) => {
     selectedDesa.value = String(val || 'all');
-    currentPage.value = 1;
+    applyFilter();
 };
 
 const onKerawananChange = (val: any) => {
     selectedKerawanan.value = String(val || 'all');
-    currentPage.value = 1;
+    applyFilter();
 };
 
 const desaComboboxOptions = computed(() => [
@@ -155,15 +180,30 @@ const resetFilter = () => {
     searchInput.value = '';
     selectedDesa.value = 'all';
     selectedKerawanan.value = 'all';
+    tanggalMulai.value = '';
+    tanggalSelesai.value = '';
     currentPage.value = 1;
+    applyFilter();
+};
+
+const buildQueryParams = () => {
+    const params = new URLSearchParams();
+    if (searchInput.value) params.append('search', searchInput.value);
+    if (selectedDesa.value !== 'all') params.append('desa_id', selectedDesa.value);
+    if (selectedKerawanan.value !== 'all') params.append('indeks_kerawanan', selectedKerawanan.value);
+    if (tanggalMulai.value) params.append('tanggal_mulai', tanggalMulai.value);
+    if (tanggalSelesai.value) params.append('tanggal_selesai', tanggalSelesai.value);
+    return params;
 };
 
 const exportExcel = () => {
-    window.location.href = '/pimpasa/rekapitulasi/export-excel';
+    const params = buildQueryParams();
+    window.location.href = `/pimpasa/rekapitulasi/export-excel?${params.toString()}`;
 };
 
 const exportPdf = () => {
-    window.open('/pimpasa/rekapitulasi/export-pdf', '_blank');
+    const params = buildQueryParams();
+    window.open(`/pimpasa/rekapitulasi/export-pdf?${params.toString()}`, '_blank');
 };
 
 const getKerawananBadge = (level: string) => {
@@ -200,10 +240,10 @@ const desaRentan = computed(() => props.desaList.filter(d => d.indeks_kerawanan 
                 <p class="text-xs text-slate-600">Laporan Rekapitulasi Kinerja Pengawasan Desa Binaan Imigrasi (SIMPEL DBI)</p>
             </div>
 
-            <!-- Quick Metric KPI Cards (Matching Presisi Worklist, Tindak Lanjut & Desa Binaan) -->
+            <!-- Quick Metric KPI Cards (Presisi Rekapitulasi Satker PIMPASA) -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 
-                <!-- Card 1: Total Pengajuan Laporan -->
+                <!-- Card 1: Total Pengajuan Laporan Agregat -->
                 <Card class="border-slate-200/80 shadow-2xs rounded-lg bg-white relative overflow-hidden group">
                     <div class="absolute -right-4 -bottom-6 text-slate-200/70 pointer-events-none">
                         <FileText :size="105" stroke-width="1.0" />
@@ -217,12 +257,50 @@ const desaRentan = computed(() => props.desaList.filter(d => d.indeks_kerawanan 
                             </div>
                         </div>
                         <div class="pt-2">
-                            <p class="text-[11px] text-slate-500 font-medium">Seluruh aduan desa binaan</p>
+                            <p class="text-[11px] text-slate-500 font-medium">Seluruh aduan desa binaan UPT</p>
                         </div>
                     </CardContent>
                 </Card>
 
-                <!-- Card 2: Resolution Rate -->
+                <!-- Card 2: Total Desa Binaan Terbina -->
+                <Card class="border-slate-200/80 shadow-2xs rounded-lg bg-white relative overflow-hidden group">
+                    <div class="absolute -right-4 -bottom-6 text-slate-200/70 pointer-events-none">
+                        <Building2 :size="105" stroke-width="1.0" />
+                    </div>
+
+                    <CardContent class="p-4 sm:p-5 flex flex-col justify-between h-full min-h-[92px] relative z-10">
+                        <div class="space-y-0.5 pr-12">
+                            <span class="text-xs font-semibold text-slate-500 block leading-tight">Total Desa Binaan</span>
+                            <div class="text-3xl font-bold text-blue-800 font-sans tabular-nums tracking-tight leading-none pt-1">
+                                {{ totalDesa }}
+                            </div>
+                        </div>
+                        <div class="pt-2">
+                            <p class="text-[11px] text-slate-500 font-medium">Wilayah pengawasan UPT</p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <!-- Card 3: Desa Rentan (High Risk) -->
+                <Card class="border-slate-200/80 shadow-2xs rounded-lg bg-white relative overflow-hidden group">
+                    <div class="absolute -right-4 -bottom-6 text-slate-200/70 pointer-events-none">
+                        <ShieldAlert :size="105" stroke-width="1.0" />
+                    </div>
+
+                    <CardContent class="p-4 sm:p-5 flex flex-col justify-between h-full min-h-[92px] relative z-10">
+                        <div class="space-y-0.5 pr-12">
+                            <span class="text-xs font-semibold text-slate-500 block leading-tight">Desa Rentan (High Risk)</span>
+                            <div class="text-3xl font-bold text-rose-700 font-sans tabular-nums tracking-tight leading-none pt-1">
+                                {{ desaRentan }}
+                            </div>
+                        </div>
+                        <div class="pt-2">
+                            <p class="text-[11px] text-rose-600 font-medium">Butuh pembinaan intensif</p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <!-- Card 4: Resolution Rate % -->
                 <Card class="border-slate-200/80 shadow-2xs rounded-lg bg-white relative overflow-hidden group">
                     <div class="absolute -right-4 -bottom-6 text-slate-200/70 pointer-events-none">
                         <Award :size="105" stroke-width="1.0" />
@@ -237,44 +315,6 @@ const desaRentan = computed(() => props.desaList.filter(d => d.indeks_kerawanan 
                         </div>
                         <div class="pt-2">
                             <p class="text-[11px] text-emerald-600 font-medium">Tingkat penyelesaian tuntas</p>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <!-- Card 3: Proses Penanganan Lapangan UPT -->
-                <Card class="border-slate-200/80 shadow-2xs rounded-lg bg-white relative overflow-hidden group">
-                    <div class="absolute -right-4 -bottom-6 text-slate-200/70 pointer-events-none">
-                        <Activity :size="105" stroke-width="1.0" />
-                    </div>
-
-                    <CardContent class="p-4 sm:p-5 flex flex-col justify-between h-full min-h-[92px] relative z-10">
-                        <div class="space-y-0.5 pr-12">
-                            <span class="text-xs font-semibold text-slate-500 block leading-tight">Proses Operasional UPT</span>
-                            <div class="text-3xl font-bold text-indigo-700 font-sans tabular-nums tracking-tight leading-none pt-1">
-                                {{ rekap.laporan_proses }}
-                            </div>
-                        </div>
-                        <div class="pt-2">
-                            <p class="text-[11px] text-slate-500 font-medium">Tindak lanjut berjalan</p>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <!-- Card 4: Avg Response Time -->
-                <Card class="border-slate-200/80 shadow-2xs rounded-lg bg-white relative overflow-hidden group">
-                    <div class="absolute -right-4 -bottom-6 text-slate-200/70 pointer-events-none">
-                        <Clock :size="105" stroke-width="1.0" />
-                    </div>
-
-                    <CardContent class="p-4 sm:p-5 flex flex-col justify-between h-full min-h-[92px] relative z-10">
-                        <div class="space-y-0.5 pr-12">
-                            <span class="text-xs font-semibold text-slate-500 block leading-tight">Rata-rata Waktu Respon</span>
-                            <div class="text-3xl font-bold text-sky-700 font-sans tabular-nums tracking-tight leading-none pt-1">
-                                {{ rekap.avg_response_hours }} Jam
-                            </div>
-                        </div>
-                        <div class="pt-2">
-                            <p class="text-[11px] text-slate-500 font-medium">SLA verifikasi & disposisi</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -317,62 +357,101 @@ const desaRentan = computed(() => props.desaList.filter(d => d.indeks_kerawanan 
                     </div>
                 </div>
 
-                <!-- Toolbar Filter (Print Hidden) -->
-                <div class="p-4 bg-slate-50/50 border-b border-slate-100 grid grid-cols-1 sm:grid-cols-12 gap-3 print:hidden">
+                <!-- Toolbar Filter (Clean Structured 2-Tier Split Layout, Print Hidden) -->
+                <div class="p-4 bg-slate-50/60 border-b border-slate-100 space-y-3 print:hidden">
                     
-                    <!-- Search Input -->
-                    <div class="sm:col-span-6 lg:col-span-3 relative">
-                        <Search :size="15" class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <Input
-                            type="text"
-                            v-model="searchInput"
-                            placeholder="Cari kode desa, nama, kec..."
-                            class="pl-9 pr-24 text-xs rounded-md bg-white border-slate-200/90 h-9 shadow-2xs"
-                        />
-                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-medium pointer-events-none select-none hidden sm:flex items-center gap-1">
-                            <kbd class="bg-slate-100 border border-slate-300 text-slate-500 text-[9px] font-sans font-semibold px-1.5 py-0.5 rounded">Enter</kbd>
-                        </span>
-                    </div>
+                    <!-- Row 1: Search Bar Utama & Reset Button -->
+                    <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+                        <div class="relative w-full flex-1">
+                            <Search :size="15" class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                            <Input
+                                type="text"
+                                v-model="searchInput"
+                                @keyup.enter="applyFilter"
+                                placeholder="Cari kode desa, nama, kecamatan..."
+                                class="pl-9 pr-24 text-xs rounded-md bg-white border-slate-200/90 h-9.5 shadow-2xs w-full focus:ring-1 focus:ring-slate-400"
+                            />
+                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-medium pointer-events-none select-none hidden sm:flex items-center gap-1">
+                                <kbd class="bg-slate-100 border border-slate-300 text-slate-500 text-[9px] font-sans font-semibold px-1.5 py-0.5 rounded">Enter</kbd>
+                            </span>
+                        </div>
 
-                    <!-- Filter Indeks Kerawanan -->
-                    <div class="sm:col-span-6 lg:col-span-3">
-                        <Select v-model="selectedKerawanan" @update:model-value="onKerawananChange">
-                            <SelectTrigger class="w-full bg-white border-slate-200/90 rounded-md text-xs font-semibold text-slate-800 shadow-2xs h-9">
-                                <SelectValue placeholder="Semua Indeks Kerawanan" />
-                            </SelectTrigger>
-                            <SelectContent class="rounded-lg shadow-xl border-slate-200 bg-white">
-                                <SelectItem value="all" class="text-xs font-semibold text-slate-900">Semua Indeks Kerawanan ({{ totalDesa }})</SelectItem>
-                                <SelectItem value="rendah" class="text-xs text-emerald-700 font-semibold">Kondusif / Aman ({{ desaAman }})</SelectItem>
-                                <SelectItem value="sedang" class="text-xs text-amber-700 font-semibold">Pembinaan Aktif ({{ desaSedang }})</SelectItem>
-                                <SelectItem value="tinggi" class="text-xs text-red-700 font-bold">Rentan / High Risk ({{ desaRentan }})</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    <!-- Combobox Filter Desa Binaan (Searchable) -->
-                    <div class="sm:col-span-6 lg:col-span-5">
-                        <Combobox
-                            :options="desaComboboxOptions"
-                            :model-value="selectedDesa"
-                            @update:model-value="onDesaChange"
-                            placeholder="Pilih Desa Binaan..."
-                            search-placeholder="Cari desa binaan..."
-                            class="w-full h-9 bg-white border-slate-200/90 text-xs font-semibold text-slate-800 shadow-2xs"
-                        />
-                    </div>
-
-                    <!-- Reset Filter Button -->
-                    <div class="sm:col-span-12 lg:col-span-1 flex items-center">
                         <button
                             type="button"
                             @click="resetFilter"
-                            class="w-full h-9 px-2.5 bg-white border border-slate-200/90 rounded-md text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                            class="w-full sm:w-auto h-9.5 px-4 bg-white border border-slate-200/90 rounded-md text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer shrink-0"
+                            title="Reset Filter"
                         >
                             <RotateCcw :size="13" class="text-slate-400 shrink-0" />
-                            <span>Reset</span>
+                            <span>Reset Filter</span>
                         </button>
                     </div>
 
+                    <!-- Row 2: 4 Filter Columns with Clear Labels (Dari Tanggal, Sampai Tanggal, Indeks Kerawanan, Desa Binaan) -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        
+                        <!-- Col 1: Dari Tanggal -->
+                        <div class="space-y-1">
+                            <label class="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                                <Calendar :size="12" class="text-slate-400 shrink-0" /> Dari Tanggal
+                            </label>
+                            <Input
+                                type="date"
+                                v-model="tanggalMulai"
+                                @change="applyFilter"
+                                class="text-xs bg-white border-slate-200/90 h-9 rounded-md shadow-2xs w-full px-3 text-slate-800 font-semibold cursor-pointer"
+                                title="Dari Tanggal"
+                            />
+                        </div>
+
+                        <!-- Col 2: Sampai Tanggal -->
+                        <div class="space-y-1">
+                            <label class="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                                <Calendar :size="12" class="text-slate-400 shrink-0" /> Sampai Tanggal
+                            </label>
+                            <Input
+                                type="date"
+                                v-model="tanggalSelesai"
+                                @change="applyFilter"
+                                class="text-xs bg-white border-slate-200/90 h-9 rounded-md shadow-2xs w-full px-3 text-slate-800 font-semibold cursor-pointer"
+                                title="Sampai Tanggal"
+                            />
+                        </div>
+
+                        <!-- Col 3: Indeks Kerawanan Filter -->
+                        <div class="space-y-1">
+                            <label class="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                                <Filter :size="12" class="text-slate-400 shrink-0" /> Indeks Kerawanan
+                            </label>
+                            <Select v-model="selectedKerawanan" @update:model-value="onKerawananChange">
+                                <SelectTrigger class="w-full bg-white border-slate-200/90 rounded-md text-xs font-semibold text-slate-800 shadow-2xs h-9">
+                                    <SelectValue placeholder="Semua Indeks Kerawanan" />
+                                </SelectTrigger>
+                                <SelectContent class="rounded-lg shadow-xl border-slate-200 bg-white">
+                                    <SelectItem value="all" class="text-xs font-semibold text-slate-900">Semua Indeks Kerawanan ({{ totalDesa }})</SelectItem>
+                                    <SelectItem value="rendah" class="text-xs text-emerald-700 font-semibold">Kondusif / Aman ({{ desaAman }})</SelectItem>
+                                    <SelectItem value="sedang" class="text-xs text-amber-700 font-semibold">Pembinaan Aktif ({{ desaSedang }})</SelectItem>
+                                    <SelectItem value="tinggi" class="text-xs text-red-700 font-bold">Rentan / High Risk ({{ desaRentan }})</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <!-- Col 4: Desa Binaan Filter -->
+                        <div class="space-y-1">
+                            <label class="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                                <MapPin :size="12" class="text-slate-400 shrink-0" /> Desa Binaan
+                            </label>
+                            <Combobox
+                                :options="desaComboboxOptions"
+                                :model-value="selectedDesa"
+                                @update:model-value="onDesaChange"
+                                placeholder="Semua Desa Binaan"
+                                search-placeholder="Cari desa binaan..."
+                                class="w-full h-9 bg-white border-slate-200/90 text-xs font-semibold text-slate-800 shadow-2xs"
+                            />
+                        </div>
+
+                    </div>
                 </div>
 
                 <!-- Vue Data Table -->

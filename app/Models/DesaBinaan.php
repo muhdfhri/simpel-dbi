@@ -50,7 +50,7 @@ class DesaBinaan extends Model
 
     public function perangkatDesa(): HasMany
     {
-        return $this->hasMany(User::class, 'desa_id');
+        return $this->hasMany(User::class, 'desa_id')->where('role', 'desa');
     }
 
     public function skList(): HasMany

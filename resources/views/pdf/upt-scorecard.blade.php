@@ -127,10 +127,10 @@
                 <td style="width: 35%;">{{ $user->name ?? 'Administrator Kanwil' }}</td>
             </tr>
             <tr>
+                <td><strong>Periode Filter:</strong></td>
+                <td>{{ $periodeText ?? 'Semua Periode' }}</td>
                 <td><strong>Total UPT Imigrasi:</strong></td>
                 <td>{{ count($scorecards) }} Satker</td>
-                <td><strong>Wilayah Kerja:</strong></td>
-                <td>Sumatera Utara</td>
             </tr>
         </table>
     </div>

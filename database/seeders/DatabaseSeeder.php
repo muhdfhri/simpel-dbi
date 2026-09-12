@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             UserPimpasaSeeder::class,
             DesaBinaanSeeder::class,
+            WilayahAdministratifFromMdSeeder::class,
             PerangkatDesaSeeder::class,
             NotificationSeeder::class,
             KegiatanPembinaanSeeder::class,

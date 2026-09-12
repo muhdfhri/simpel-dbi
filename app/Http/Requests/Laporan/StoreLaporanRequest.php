@@ -20,6 +20,20 @@ class StoreLaporanRequest extends FormRequest
 
     public function rules(): array
     {
+        $isUpdate = $this->isMethod('PUT') || $this->isMethod('PATCH') || $this->route('laporan');
+        $hasExistingLampiran = false;
+
+        if ($isUpdate) {
+            $laporan = $this->route('laporan');
+            if ($laporan instanceof \App\Models\Laporan) {
+                $hasExistingLampiran = $laporan->lampiranList()->exists();
+            }
+        }
+
+        $lampiranRules = ($isUpdate && $hasExistingLampiran)
+            ? ['nullable', 'array', 'max:2']
+            : ['required', 'array', 'min:1', 'max:2'];
+
         return [
             'kategori_id' => ['required', 'exists:kategori_laporans,id'],
             'judul' => ['required', 'string', 'max:150'],
@@ -27,7 +41,7 @@ class StoreLaporanRequest extends FormRequest
             'lokasi_detail' => ['required', 'string', 'max:100'],
             'kronologi' => ['required', 'string'],
             'estimasi_jumlah_orang' => ['required', 'integer', 'min:1'],
-            'lampiran' => ['required', 'array', 'min:1', 'max:2'],
+            'lampiran' => $lampiranRules,
             'lampiran.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:2048'], // Max 2MB (2048 KB)
         ];
     }

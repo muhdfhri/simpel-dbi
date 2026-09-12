@@ -67,8 +67,8 @@ class MasterDataService
         $user = User::create([
             'name' => trim($data['name']),
             'email' => strtolower(trim($data['email'])),
-            'nip' => trim($data['nip']),
-            'golongan' => trim($data['golongan']),
+            'nip' => !empty($data['nip']) ? trim($data['nip']) : null,
+            'golongan' => !empty($data['golongan']) ? trim($data['golongan']) : null,
             'upt_id' => (int) $data['upt_id'],
             'password' => Hash::make($data['password']),
             'role' => 'pimpasa',
@@ -87,8 +87,8 @@ class MasterDataService
         $updateData = [
             'name' => trim($data['name']),
             'email' => strtolower(trim($data['email'])),
-            'nip' => trim($data['nip']),
-            'golongan' => trim($data['golongan']),
+            'nip' => !empty($data['nip']) ? trim($data['nip']) : null,
+            'golongan' => !empty($data['golongan']) ? trim($data['golongan']) : null,
             'upt_id' => (int) $data['upt_id'],
         ];
 

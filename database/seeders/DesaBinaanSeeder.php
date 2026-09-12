@@ -247,7 +247,7 @@ class DesaBinaanSeeder extends Seeder
                 ->inRandomOrder()
                 ->first();
 
-            DesaBinaan::firstOrCreate(
+            $desaBinaan = DesaBinaan::updateOrCreate(
                 ['nama' => $d['nama']],
                 [
                     'wilayah_id' => $wilayahDefault->id,
@@ -258,6 +258,31 @@ class DesaBinaanSeeder extends Seeder
                     'status_terkini' => 'aman',
                 ]
             );
+
+            if ($assignedPimpasa) {
+                $assignedPimpasa->update(['desa_id' => $desaBinaan->id]);
+            }
+        }
+
+        // Pastikan setiap user PIMPASA memiliki desa_id yang valid dari UPT-nya
+        $unassignedPimpasas = User::where('role', 'pimpasa')->whereNull('desa_id')->get();
+        foreach ($unassignedPimpasas as $pimpasa) {
+            $desa = DesaBinaan::where('upt_id', $pimpasa->upt_id)->inRandomOrder()->first();
+            if ($desa) {
+                $pimpasa->update(['desa_id' => $desa->id]);
+            }
+        }
+
+        // Pastikan user Perangkat Desa memiliki desa_id & upt_id yang valid
+        $userDesaList = User::where('role', 'desa')->whereNull('desa_id')->get();
+        $firstDesa = DesaBinaan::first();
+        if ($firstDesa) {
+            foreach ($userDesaList as $uDesa) {
+                $uDesa->update([
+                    'desa_id' => $firstDesa->id,
+                    'upt_id' => $firstDesa->upt_id,
+                ]);
+            }
         }
     }
 }

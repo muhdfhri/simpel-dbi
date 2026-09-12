@@ -16,7 +16,7 @@ class TindakLanjutIndexController extends Controller
 
     public function __invoke(Request $request): Response
     {
-        $filters = $request->only(['search', 'status', 'kategori', 'desa_id']);
+        $filters = $request->only(['search', 'status', 'kategori', 'desa_id', 'tanggal_mulai', 'tanggal_selesai']);
         $user = $request->user();
         $uptId = $user->upt_id;
 

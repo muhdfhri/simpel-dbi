@@ -152,6 +152,12 @@
                 <td width="32%">: {{ $tanggalCetak }} WIB</td>
             </tr>
             <tr>
+                <td><strong>Periode Filter</strong></td>
+                <td>: {{ $periodeText ?? 'Semua Periode' }}</td>
+                <td><strong>Petugas Pencetak</strong></td>
+                <td>: {{ $pimpasaNama }}</td>
+            </tr>
+            <tr>
                 <td><strong>Total Agenda</strong></td>
                 <td>: {{ $stats['total_kegiatan'] ?? count($kegiatanList) }} Kegiatan</td>
                 <td><strong>Total Peserta Terbina</strong></td>
@@ -159,9 +165,7 @@
             </tr>
             <tr>
                 <td><strong>Cakupan Desa</strong></td>
-                <td>: {{ $stats['total_desa'] ?? 0 }} Desa Binaan</td>
-                <td><strong>Petugas Pencetak</strong></td>
-                <td>: {{ $pimpasaNama }}</td>
+                <td colspan="3">: {{ $stats['total_desa'] ?? 0 }} Desa Binaan</td>
             </tr>
         </table>
     </div>

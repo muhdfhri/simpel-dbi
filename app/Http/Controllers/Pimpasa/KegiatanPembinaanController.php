@@ -21,7 +21,7 @@ class KegiatanPembinaanController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
-        $query = KegiatanPembinaan::with(['desa', 'pimpasa', 'lampiranList'])
+        $query = KegiatanPembinaan::with(['desaList', 'pimpasa', 'lampiranList'])
             ->orderBy('tanggal', 'desc');
 
         // PIMPASA Scope: Filter by PIMPASA user if applicable
@@ -35,7 +35,7 @@ class KegiatanPembinaanController extends Controller
                 $q->where('judul', 'like', "%{$search}%")
                   ->orWhere('jenis_pembinaan', 'like', "%{$search}%")
                   ->orWhere('ringkasan_materi', 'like', "%{$search}%")
-                  ->orWhereHas('desa', function ($dq) use ($search) {
+                  ->orWhereHas('desaList', function ($dq) use ($search) {
                       $dq->where('nama', 'like', "%{$search}%");
                   });
             });
@@ -43,7 +43,9 @@ class KegiatanPembinaanController extends Controller
 
         // Desa Filter
         if ($desaId = $request->input('desa_id')) {
-            $query->where('desa_id', $desaId);
+            $query->whereHas('desaList', function ($q) use ($desaId) {
+                $q->where('desa_binaan.id', $desaId);
+            });
         }
 
         // Jenis Filter
@@ -56,35 +58,56 @@ class KegiatanPembinaanController extends Controller
             $query->where('status', $status);
         }
 
+        // Date Range Filter
+        if ($tanggalMulai = $request->input('tanggal_mulai')) {
+            $query->whereDate('tanggal', '>=', $tanggalMulai);
+        }
+        if ($tanggalSelesai = $request->input('tanggal_selesai')) {
+            $query->whereDate('tanggal', '<=', $tanggalSelesai);
+        }
+
         $kegiatanList = $query->get()->map(function ($item) {
+            $desaListNames = $item->desaList->pluck('nama')->toArray();
             return [
                 'id' => $item->id,
                 'pimpasa_id' => $item->pimpasa_id,
-                'desa_id' => $item->desa_id,
+                'desa_id' => $item->desa_id ?? ($item->desaList->first()?->id ?? 0),
+                'desa_ids' => $item->desaList->pluck('id')->toArray(),
+                'desa_nama_list' => $desaListNames,
                 'judul' => $item->judul,
                 'jenis_pembinaan' => $item->jenis_pembinaan,
                 'tanggal' => $item->tanggal ? $item->tanggal->format('Y-m-d') : null,
+                'tanggal_selesai' => $item->tanggal_selesai ? $item->tanggal_selesai->format('Y-m-d') : null,
                 'jumlah_peserta' => $item->jumlah_peserta,
                 'status' => $item->status,
                 'lokasi' => $item->lokasi,
                 'ringkasan_materi' => $item->ringkasan_materi,
-                'desa_nama' => $item->desa?->nama ?? '-',
+                'desa_nama' => count($desaListNames) > 0 ? implode(', ', $desaListNames) : '-',
                 'petugas_nama' => $item->pimpasa?->name ?? 'Petugas PIMPASA',
                 'lampiran' => $item->lampiranList->map(fn($l) => [
                     'id' => $l->id,
-                    'file_name' => $l->file_name,
-                    'file_path' => Storage::url($l->file_path),
-                    'mime_type' => $l->mime_type,
+                    'file_name' => $l->nama_file_asli,
+                    'file_path' => Storage::url($l->path),
+                    'mime_type' => $l->tipe_file,
                 ]),
             ];
         });
 
         // Compute Stats & Counts
-        $allKegiatan = KegiatanPembinaan::when($user->hasRole('PIMPASA'), fn($q) => $q->where('pimpasa_id', $user->id))->get();
+        $allKegiatan = KegiatanPembinaan::with('desaList')
+            ->when($user->hasRole('PIMPASA'), fn($q) => $q->where('pimpasa_id', $user->id))->get();
+        
+        $totalDesaSet = collect();
+        foreach ($allKegiatan as $k) {
+            foreach ($k->desaList as $d) {
+                $totalDesaSet->push($d->id);
+            }
+        }
+
         $stats = [
             'total_kegiatan' => $allKegiatan->count(),
             'total_peserta' => (int) $allKegiatan->sum('jumlah_peserta'),
-            'total_desa' => $allKegiatan->pluck('desa_id')->unique()->count(),
+            'total_desa' => $totalDesaSet->unique()->count(),
             'count_selesai' => $allKegiatan->where('status', 'selesai')->count(),
             'count_terjadwal' => $allKegiatan->where('status', 'terjadwal')->count(),
             'count_dibatalkan' => $allKegiatan->where('status', 'dibatalkan')->count(),
@@ -115,7 +138,7 @@ class KegiatanPembinaanController extends Controller
             'kegiatanList' => $kegiatanList,
             'desaList' => $desaList,
             'stats' => $stats,
-            'filters' => $request->only(['search', 'desa_id', 'jenis_pembinaan', 'status']),
+            'filters' => $request->only(['search', 'desa_id', 'jenis_pembinaan', 'status', 'tanggal_mulai', 'tanggal_selesai']),
         ]);
     }
 
@@ -124,18 +147,24 @@ class KegiatanPembinaanController extends Controller
         $user = $request->user();
         $validated = $request->validated();
         $validated['pimpasa_id'] = $user->id;
+        $validated['desa_id'] = $validated['desa_ids'][0] ?? null;
+
+        $desaIds = $validated['desa_ids'];
+        unset($validated['desa_ids']);
 
         $kegiatan = KegiatanPembinaan::create($validated);
+        $kegiatan->desaList()->sync($desaIds);
 
         // Process attachments if any
         if ($request->hasFile('lampiran_files')) {
             foreach ($request->file('lampiran_files') as $file) {
                 $path = $file->store('kegiatan-pembinaan', 'public');
                 $kegiatan->lampiranList()->create([
-                    'file_name' => $file->getClientOriginalName(),
-                    'file_path' => $path,
-                    'file_size' => $file->getSize(),
-                    'mime_type' => $file->getClientMimeType(),
+                    'path' => $path,
+                    'nama_file_asli' => $file->getClientOriginalName(),
+                    'tipe_file' => strtolower($file->getClientOriginalExtension() ?: 'file'),
+                    'ukuran_bytes' => $file->getSize(),
+                    'uploaded_by' => $user->id,
                 ]);
             }
         }
@@ -145,18 +174,26 @@ class KegiatanPembinaanController extends Controller
 
     public function update(KegiatanPembinaanRequest $request, KegiatanPembinaan $kegiatan): RedirectResponse
     {
+        $user = $request->user();
         $validated = $request->validated();
+        $validated['desa_id'] = $validated['desa_ids'][0] ?? null;
+
+        $desaIds = $validated['desa_ids'];
+        unset($validated['desa_ids']);
+
         $kegiatan->update($validated);
+        $kegiatan->desaList()->sync($desaIds);
 
         // Process new attachments if any
         if ($request->hasFile('lampiran_files')) {
             foreach ($request->file('lampiran_files') as $file) {
                 $path = $file->store('kegiatan-pembinaan', 'public');
                 $kegiatan->lampiranList()->create([
-                    'file_name' => $file->getClientOriginalName(),
-                    'file_path' => $path,
-                    'file_size' => $file->getSize(),
-                    'mime_type' => $file->getClientMimeType(),
+                    'path' => $path,
+                    'nama_file_asli' => $file->getClientOriginalName(),
+                    'tipe_file' => strtolower($file->getClientOriginalExtension() ?: 'file'),
+                    'ukuran_bytes' => $file->getSize(),
+                    'uploaded_by' => $user->id,
                 ]);
             }
         }
@@ -171,6 +208,16 @@ class KegiatanPembinaanController extends Controller
         return redirect()->back()->with('success', 'Data kegiatan pembinaan berhasil dihapus.');
     }
 
+    public function destroyLampiran(Lampiran $lampiran): RedirectResponse
+    {
+        if ($lampiran->path && Storage::disk('public')->exists($lampiran->path)) {
+            Storage::disk('public')->delete($lampiran->path);
+        }
+        $lampiran->delete();
+
+        return redirect()->back()->with('success', 'File lampiran berhasil dihapus.');
+    }
+
     public function exportPdf(Request $request)
     {
         $user = $request->user();
@@ -183,6 +230,33 @@ class KegiatanPembinaanController extends Controller
 
         if ($desaId = $request->input('desa_id')) {
             $query->where('desa_id', $desaId);
+        }
+
+        if ($jenis = $request->input('jenis_pembinaan')) {
+            $query->where('jenis_pembinaan', $jenis);
+        }
+
+        if ($status = $request->input('status')) {
+            $query->where('status', $status);
+        }
+
+        $tanggalMulai = $request->input('tanggal_mulai');
+        $tanggalSelesai = $request->input('tanggal_selesai');
+
+        if ($tanggalMulai) {
+            $query->whereDate('tanggal', '>=', $tanggalMulai);
+        }
+        if ($tanggalSelesai) {
+            $query->whereDate('tanggal', '<=', $tanggalSelesai);
+        }
+
+        $periodeText = 'Semua Periode';
+        if ($tanggalMulai && $tanggalSelesai) {
+            $periodeText = \Carbon\Carbon::parse($tanggalMulai)->locale('id')->isoFormat('D MMM YYYY') . ' s.d. ' . \Carbon\Carbon::parse($tanggalSelesai)->locale('id')->isoFormat('D MMM YYYY');
+        } elseif ($tanggalMulai) {
+            $periodeText = \Carbon\Carbon::parse($tanggalMulai)->locale('id')->isoFormat('D MMM YYYY') . ' s.d. Selesai';
+        } elseif ($tanggalSelesai) {
+            $periodeText = 's.d. ' . \Carbon\Carbon::parse($tanggalSelesai)->locale('id')->isoFormat('D MMM YYYY');
         }
 
         $kegiatanList = $query->get()->map(function ($item) {
@@ -205,7 +279,7 @@ class KegiatanPembinaanController extends Controller
             'total_desa' => count(array_unique(array_column($kegiatanList->toArray(), 'desa_nama'))),
         ];
 
-        $uptNama = $user->upt?->nama_upt ?? 'Kanwil Kemenkumham Sumatera Utara';
+        $uptNama = $user->upt?->nama_upt ?? 'Kanwil Ditjenim Sumatera Utara';
         $pimpasaNama = $user->name ?? 'Petugas PIMPASA';
         $tanggalCetak = now()->locale('id')->isoFormat('D MMMM YYYY, HH:mm');
 
@@ -214,7 +288,8 @@ class KegiatanPembinaanController extends Controller
             'stats',
             'uptNama',
             'pimpasaNama',
-            'tanggalCetak'
+            'tanggalCetak',
+            'periodeText'
         ))->setPaper('a4', 'landscape');
 
         return $pdf->download('Rekapitulasi_Kegiatan_Pembinaan_' . date('Ymd_His') . '.pdf');
@@ -232,6 +307,21 @@ class KegiatanPembinaanController extends Controller
 
         if ($desaId = $request->input('desa_id')) {
             $query->where('desa_id', $desaId);
+        }
+
+        if ($jenis = $request->input('jenis_pembinaan')) {
+            $query->where('jenis_pembinaan', $jenis);
+        }
+
+        if ($status = $request->input('status')) {
+            $query->where('status', $status);
+        }
+
+        if ($tanggalMulai = $request->input('tanggal_mulai')) {
+            $query->whereDate('tanggal', '>=', $tanggalMulai);
+        }
+        if ($tanggalSelesai = $request->input('tanggal_selesai')) {
+            $query->whereDate('tanggal', '<=', $tanggalSelesai);
         }
 
         $kegiatanList = $query->get();

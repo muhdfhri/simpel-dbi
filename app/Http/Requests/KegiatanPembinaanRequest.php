@@ -13,16 +13,21 @@ class KegiatanPembinaanRequest extends FormRequest
 
     public function rules(): array
     {
+        $isCreate = $this->isMethod('post') && !$this->header('X-HTTP-Method-Override');
+
         return [
             'judul' => ['required', 'string', 'max:255'],
-            'desa_id' => ['required', 'exists:desa_binaan,id'],
+            'desa_ids' => ['required', 'array', 'min:1'],
+            'desa_ids.*' => ['exists:desa_binaan,id'],
             'jenis_pembinaan' => ['required', 'string', 'max:100'],
             'tanggal' => ['required', 'date'],
+            'tanggal_selesai' => ['required', 'date', 'after_or_equal:tanggal'],
             'jumlah_peserta' => ['required', 'integer', 'min:1'],
             'status' => ['required', 'string', 'in:terjadwal,selesai,dibatalkan'],
-            'lokasi' => ['nullable', 'string', 'max:255'],
+            'lokasi' => ['required', 'string', 'max:255'],
             'ringkasan_materi' => ['required', 'string'],
-            'lampiran_files.*' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:2048'],
+            'lampiran_files' => [$isCreate ? 'required' : 'nullable', 'array', 'min:1'],
+            'lampiran_files.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:2048'],
         ];
     }
 
@@ -30,13 +35,19 @@ class KegiatanPembinaanRequest extends FormRequest
     {
         return [
             'judul.required' => 'Judul kegiatan wajib diisi.',
-            'desa_id.required' => 'Desa sasaran wajib dipilih.',
-            'desa_id.exists' => 'Desa sasaran tidak valid.',
+            'desa_ids.required' => 'Desa sasaran wajib dipilih minimal 1 desa.',
+            'desa_ids.min' => 'Desa sasaran wajib dipilih minimal 1 desa.',
+            'desa_ids.*.exists' => 'Pilihan desa sasaran tidak valid.',
             'jenis_pembinaan.required' => 'Jenis pembinaan wajib diisi.',
-            'tanggal.required' => 'Tanggal pelaksanaan wajib diisi.',
+            'tanggal.required' => 'Tanggal mulai pelaksanaan wajib diisi.',
+            'tanggal_selesai.required' => 'Tanggal selesai pelaksanaan wajib diisi.',
+            'tanggal_selesai.after_or_equal' => 'Tanggal selesai tidak boleh sebelum tanggal mulai.',
             'jumlah_peserta.required' => 'Jumlah peserta wajib diisi.',
             'status.required' => 'Status kegiatan wajib dipilih.',
+            'lokasi.required' => 'Lokasi pelaksanaan wajib diisi.',
             'ringkasan_materi.required' => 'Ringkasan materi / catatan kegiatan wajib diisi.',
+            'lampiran_files.required' => 'Foto dokumentasi / lampiran berkas wajib diunggah.',
+            'lampiran_files.min' => 'Upload minimal 1 foto dokumentasi / berkas lampiran.',
             'lampiran_files.*.max' => 'Ukuran file dokumen lampiran maksimal 2MB per file.',
             'lampiran_files.*.mimes' => 'Format file harus berupa JPG, PNG, atau PDF.',
         ];

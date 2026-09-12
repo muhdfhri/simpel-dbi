@@ -57,12 +57,23 @@ class NtfyNotificationService
 
         try {
             $ntfyServer = config('services.ntfy.server', 'https://ntfy.sh');
-            $response = Http::timeout(1.5)
+            
+            // 1. Push ke topic spesifik user
+            Http::timeout(1.5)
                 ->withHeaders($headers)
                 ->withBody($message, 'text/plain')
                 ->post("{$ntfyServer}/{$topic}");
 
-            return $response->successful();
+            // 2. Jika role pimpasa atau kanwil, push juga ke topic role publik (agar HP / App tertutup tetap dapat notif)
+            if (in_array($userRole, ['pimpasa', 'kanwil'])) {
+                $roleTopic = "simpel_dbi_{$userRole}";
+                Http::timeout(1.5)
+                    ->withHeaders($headers)
+                    ->withBody($message, 'text/plain')
+                    ->post("{$ntfyServer}/{$roleTopic}");
+            }
+
+            return true;
         } catch (\Throwable $e) {
             Log::warning("Gagal mengirim ntfy push ke topic {$topic}: " . $e->getMessage());
             return false;

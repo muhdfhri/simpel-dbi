@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useForm, Head, Link } from '@inertiajs/vue3';
+import { useForm, Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/components/layout/AppLayout.vue';
 import {
     UploadCloud,
@@ -19,6 +19,7 @@ import {
     Paperclip,
     ExternalLink,
     FileEdit,
+    Trash2,
 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,6 +33,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal.vue';
 import { notify } from '@/lib/toast';
 
 interface LampiranItem {
@@ -130,6 +132,38 @@ const addFiles = (files: File[]) => {
 
 const removeFile = (index: number) => {
     form.lampiran.splice(index, 1);
+};
+
+const isDeleteModalOpen = ref(false);
+const lampiranToDelete = ref<LampiranItem | null>(null);
+const isDeletingLampiran = ref(false);
+
+const deleteExistingLampiran = (lampiran: LampiranItem) => {
+    lampiranToDelete.value = lampiran;
+    isDeleteModalOpen.value = true;
+};
+
+const executeDeleteLampiran = () => {
+    if (!lampiranToDelete.value) return;
+    isDeletingLampiran.value = true;
+    router.delete(`/desa/laporan/lampiran/${lampiranToDelete.value.id}`, {
+        onSuccess: () => {
+            isDeleteModalOpen.value = false;
+            isDeletingLampiran.value = false;
+            notify.success('Berkas Dihapus', { description: 'Lampiran laporan berhasil dihapus.' });
+            if (props.laporan.lampiran_list) {
+                const idx = props.laporan.lampiran_list.findIndex(l => l.id === lampiranToDelete.value?.id);
+                if (idx !== -1) {
+                    props.laporan.lampiran_list.splice(idx, 1);
+                }
+            }
+            lampiranToDelete.value = null;
+        },
+        onError: () => {
+            isDeletingLampiran.value = false;
+            notify.error('Gagal Menghapus', { description: 'Terjadi kesalahan saat menghapus lampiran.' });
+        }
+    });
 };
 
 // Submit with full client-side validation (matching Create.vue)
@@ -367,76 +401,97 @@ const submit = () => {
             <!-- RIGHT SIDEBAR PANEL (4 Cols) -->
             <div class="lg:col-span-4 space-y-6">
 
-                <!-- Lampiran Lama (Existing Files) -->
-                <Card v-if="laporan.lampiran_list && laporan.lampiran_list.length > 0" class="border-slate-200/80 shadow-2xs rounded-2xl bg-white overflow-hidden">
-                    <CardHeader class="pb-3.5 border-b border-slate-100 px-5 py-4">
-                        <CardTitle class="text-sm font-bold text-slate-900 flex items-center gap-2">
-                            <Paperclip :size="15" class="text-slate-600" />
-                            <span>Lampiran Sebelumnya</span>
-                        </CardTitle>
-                        <CardDescription class="text-xs text-slate-500">
-                            File yang sudah terlampir pada laporan ini.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent class="p-4 space-y-2">
-                        <a
-                            v-for="file in laporan.lampiran_list"
-                            :key="file.id"
-                            :href="`/storage/${file.path}`"
-                            target="_blank"
-                            class="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs text-slate-800 transition-colors group"
-                        >
-                            <div class="flex items-center gap-2 min-w-0">
-                                <FileText :size="14" class="text-slate-400 shrink-0" />
-                                <span class="truncate font-medium">{{ file.nama_file_asli }}</span>
-                            </div>
-                            <ExternalLink :size="13" class="text-slate-400 group-hover:text-slate-700 shrink-0 transition-colors" />
-                        </a>
-                    </CardContent>
-                </Card>
-
-                <!-- Upload Lampiran Tambahan Card -->
+                <!-- Berkas Lampiran & Dokumen Pendukung (Single Unified Card) -->
                 <Card class="border-slate-200/80 shadow-2xs rounded-2xl bg-white overflow-hidden">
                     <CardHeader class="pb-3.5 border-b border-slate-100 px-5 py-4">
                         <CardTitle class="text-sm font-bold text-slate-900 flex items-center justify-between">
-                            <span>Tambah Lampiran Susulan</span>
+                            <div class="flex items-center gap-2">
+                                <Paperclip :size="15" class="text-slate-600" />
+                                <span>Berkas Lampiran &amp; Dokumentasi</span>
+                            </div>
                             <span class="text-[10px] font-mono font-bold text-slate-600 bg-slate-200/70 px-2 py-0.5 rounded-full">
-                                {{ form.lampiran.length }}/2 File
+                                {{ (laporan.lampiran_list?.length || 0) + form.lampiran.length }}/2 File
                             </span>
                         </CardTitle>
                         <CardDescription class="text-xs text-slate-500">
-                            Upload file pendukung tambahan untuk perbaikan laporan.
+                            Kelola berkas terlampir atau unggah foto pendukung tambahan (Maksimal 2 file).
                         </CardDescription>
                     </CardHeader>
 
                     <CardContent class="p-5 space-y-4">
 
-                        <!-- Drag & Drop Upload Zone -->
-                        <div
-                            @dragover.prevent
-                            @drop.prevent="handleFileDrop"
-                            @click="fileInput?.click()"
-                            class="border-2 border-dashed border-slate-200 hover:border-amber-400 rounded-xl p-6 text-center bg-slate-50/40 hover:bg-amber-50/20 transition-all cursor-pointer space-y-2.5 group"
-                        >
-                            <input
-                                ref="fileInput"
-                                type="file"
-                                multiple
-                                accept=".jpg,.jpeg,.png,.pdf"
-                                class="hidden"
-                                @change="handleFileSelect"
-                            />
-                            <div class="w-10 h-10 rounded-full bg-amber-100 text-amber-700 group-hover:scale-110 group-hover:bg-amber-500 group-hover:text-white flex items-center justify-center mx-auto transition-all shadow-2xs">
-                                <UploadCloud :size="20" />
+                        <!-- Section Lampiran Tersimpan Sebelumnya (Jika Ada) -->
+                        <div v-if="laporan.lampiran_list && laporan.lampiran_list.length > 0" class="space-y-2">
+                            <span class="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                                Berkas Tersimpan:
+                            </span>
+                            <div class="space-y-2">
+                                <div
+                                    v-for="file in laporan.lampiran_list"
+                                    :key="file.id"
+                                    class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 transition-colors"
+                                >
+                                    <div class="flex items-center gap-2 min-w-0 pr-2">
+                                        <FileText :size="14" class="text-slate-400 shrink-0" />
+                                        <span class="truncate font-medium">{{ file.nama_file_asli }}</span>
+                                    </div>
+                                    <div class="flex items-center gap-1.5 shrink-0">
+                                        <a
+                                            :href="`/storage/${file.path}`"
+                                            target="_blank"
+                                            class="p-1 rounded text-primary hover:bg-primary/10 transition-colors flex items-center gap-1 text-[11px] font-semibold"
+                                            title="Lihat Berkas"
+                                        >
+                                            <span>Buka</span>
+                                            <ExternalLink :size="12" />
+                                        </a>
+                                        <button
+                                            type="button"
+                                            @click="deleteExistingLampiran(file)"
+                                            class="p-1 rounded text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                            title="Hapus Berkas Ini"
+                                        >
+                                            <Trash2 :size="13" />
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
-                            <div>
-                                <p class="text-xs font-semibold text-slate-800">
-                                    Klik untuk pilih file atau drag &amp; drop
-                                </p>
-                                <p class="text-[10px] text-slate-400 mt-1">
-                                    Format: JPG, PNG, PDF (Max 2MB/file)
-                                </p>
+                        </div>
+
+                        <!-- Drag & Drop Upload Zone (Jika Total File < 2) -->
+                        <div v-if="((laporan.lampiran_list?.length || 0) + form.lampiran.length) < 2" class="space-y-2">
+                            <span v-if="laporan.lampiran_list && laporan.lampiran_list.length > 0" class="text-xs font-bold text-slate-700 uppercase tracking-wider block pt-1">
+                                Tambah File Baru:
+                            </span>
+                            <div
+                                @dragover.prevent
+                                @drop.prevent="handleFileDrop"
+                                @click="fileInput?.click()"
+                                class="border-2 border-dashed border-slate-200 hover:border-amber-400 rounded-xl p-5 text-center bg-slate-50/40 hover:bg-amber-50/20 transition-all cursor-pointer space-y-2 group"
+                            >
+                                <input
+                                    ref="fileInput"
+                                    type="file"
+                                    multiple
+                                    accept=".jpg,.jpeg,.png,.pdf"
+                                    class="hidden"
+                                    @change="handleFileSelect"
+                                />
+                                <div class="w-9 h-9 rounded-full bg-amber-100 text-amber-700 group-hover:scale-110 group-hover:bg-amber-500 group-hover:text-white flex items-center justify-center mx-auto transition-all shadow-2xs">
+                                    <UploadCloud :size="18" />
+                                </div>
+                                <div>
+                                    <p class="text-xs font-semibold text-slate-800">
+                                        Klik untuk pilih file atau drag &amp; drop
+                                    </p>
+                                    <p class="text-[10px] text-slate-400 mt-0.5">
+                                        Format: JPG, PNG, PDF (Max 2MB/file)
+                                    </p>
+                                </div>
                             </div>
+                        </div>
+                        <div v-else-if="laporan.lampiran_list && laporan.lampiran_list.length >= 2" class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-medium">
+                            Status berkas penuh (2/2 file). Hapus salah satu berkas tersimpan jika ingin mengganti file.
                         </div>
 
                         <!-- Backend Validation Error Lampiran -->
@@ -455,8 +510,11 @@ const submit = () => {
                             </p>
                         </div>
 
-                        <!-- Selected File List Preview -->
+                        <!-- Selected New File List Preview -->
                         <div v-if="form.lampiran.length > 0" class="space-y-2 pt-1">
+                            <span class="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                                File Baru Akan Diunggah:
+                            </span>
                             <div
                                 v-for="(file, i) in form.lampiran"
                                 :key="i"
@@ -501,6 +559,16 @@ const submit = () => {
             </div>
 
         </form>
+
+        <!-- CONFIRM DELETE MODAL LAMPIRAN DESA -->
+        <ConfirmDeleteModal
+            v-model:open="isDeleteModalOpen"
+            title="Hapus Berkas Lampiran"
+            :item-name="lampiranToDelete?.nama_file_asli"
+            description="Apakah Anda yakin ingin menghapus berkas lampiran ini dari laporan?"
+            :loading="isDeletingLampiran"
+            @confirm="executeDeleteLampiran"
+        />
 
     </AppLayout>
 </template>

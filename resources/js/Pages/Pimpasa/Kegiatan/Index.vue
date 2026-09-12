@@ -17,7 +17,9 @@ import {
     Trash2,
     AlertCircle,
     Paperclip,
-    ExternalLink
+    ExternalLink,
+    Filter,
+    Tag
 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,6 +43,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import Combobox from '@/components/ui/combobox/Combobox.vue';
+import MultiCombobox from '@/components/ui/combobox/MultiCombobox.vue';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal.vue';
 import { notify } from '@/lib/toast';
 
@@ -55,9 +58,12 @@ interface KegiatanItem {
     id: number;
     pimpasa_id?: number;
     desa_id: number;
+    desa_ids?: number[];
+    desa_nama_list?: string[];
     judul: string;
     jenis_pembinaan: string;
     tanggal: string;
+    tanggal_selesai?: string;
     jumlah_peserta: number;
     status: string;
     lokasi?: string;
@@ -96,6 +102,8 @@ const props = defineProps<{
         desa_id?: string;
         jenis_pembinaan?: string;
         status?: string;
+        tanggal_mulai?: string;
+        tanggal_selesai?: string;
     };
 }>();
 
@@ -104,6 +112,8 @@ const search = ref(props.filters.search || '');
 const selectedDesa = ref(props.filters.desa_id || 'all');
 const selectedJenis = ref(props.filters.jenis_pembinaan || 'all');
 const selectedStatus = ref(props.filters.status || 'all');
+const tanggalMulai = ref(props.filters.tanggal_mulai || '');
+const tanggalSelesai = ref(props.filters.tanggal_selesai || '');
 
 const onDesaChange = (val: any) => {
     selectedDesa.value = String(val || 'all');
@@ -120,6 +130,13 @@ const desaComboboxOptions = computed(() => [
     ...(props.desaList || []).map(d => ({
         value: String(d.id),
         label: `${d.nama} (${d.kegiatan_pembinaan_list_count ?? 0})`
+    }))
+]);
+
+const desaFormMultiOptions = computed(() => [
+    ...(props.desaList || []).map(d => ({
+        value: String(d.id),
+        label: d.nama,
     }))
 ]);
 
@@ -159,6 +176,8 @@ const applyFilter = () => {
         desa_id: selectedDesa.value !== 'all' ? selectedDesa.value : undefined,
         jenis_pembinaan: selectedJenis.value !== 'all' ? selectedJenis.value : undefined,
         status: selectedStatus.value !== 'all' ? selectedStatus.value : undefined,
+        tanggal_mulai: tanggalMulai.value || undefined,
+        tanggal_selesai: tanggalSelesai.value || undefined,
     }, { preserveState: true, replace: true });
 };
 
@@ -167,6 +186,8 @@ const resetFilter = () => {
     selectedDesa.value = 'all';
     selectedJenis.value = 'all';
     selectedStatus.value = 'all';
+    tanggalMulai.value = '';
+    tanggalSelesai.value = '';
     currentPage.value = 1;
     applyFilter();
 };
@@ -174,13 +195,23 @@ const resetFilter = () => {
 // Export Handlers
 const handleExportPdf = () => {
     const params = new URLSearchParams();
+    if (search.value) params.append('search', search.value);
     if (selectedDesa.value !== 'all') params.append('desa_id', selectedDesa.value);
+    if (selectedJenis.value !== 'all') params.append('jenis_pembinaan', selectedJenis.value);
+    if (selectedStatus.value !== 'all') params.append('status', selectedStatus.value);
+    if (tanggalMulai.value) params.append('tanggal_mulai', tanggalMulai.value);
+    if (tanggalSelesai.value) params.append('tanggal_selesai', tanggalSelesai.value);
     window.open(`/pimpasa/kegiatan/export-pdf?${params.toString()}`, '_blank');
 };
 
 const handleExportExcel = () => {
     const params = new URLSearchParams();
+    if (search.value) params.append('search', search.value);
     if (selectedDesa.value !== 'all') params.append('desa_id', selectedDesa.value);
+    if (selectedJenis.value !== 'all') params.append('jenis_pembinaan', selectedJenis.value);
+    if (selectedStatus.value !== 'all') params.append('status', selectedStatus.value);
+    if (tanggalMulai.value) params.append('tanggal_mulai', tanggalMulai.value);
+    if (tanggalSelesai.value) params.append('tanggal_selesai', tanggalSelesai.value);
     window.open(`/pimpasa/kegiatan/export-excel?${params.toString()}`, '_blank');
 };
 
@@ -188,6 +219,7 @@ const handleExportExcel = () => {
 const isFormModalOpen = ref(false);
 const isEditMode = ref(false);
 const editingId = ref<number | null>(null);
+const editingItem = ref<KegiatanItem | null>(null);
 
 const isDetailModalOpen = ref(false);
 const selectedDetail = ref<KegiatanItem | null>(null);
@@ -199,9 +231,10 @@ const isDeleting = ref(false);
 // Form Management
 const form = useForm({
     judul: '',
-    desa_id: '' as string | number,
+    desa_ids: [] as string[],
     jenis_pembinaan: '',
     tanggal: new Date().toISOString().split('T')[0],
+    tanggal_selesai: '',
     jumlah_peserta: '' as string | number,
     status: '',
     lokasi: '',
@@ -212,12 +245,14 @@ const form = useForm({
 const openCreateModal = () => {
     isEditMode.value = false;
     editingId.value = null;
+    editingItem.value = null;
     form.reset();
     form.clearErrors();
     form.judul = '';
-    form.desa_id = '';
+    form.desa_ids = [];
     form.jenis_pembinaan = '';
     form.tanggal = new Date().toISOString().split('T')[0];
+    form.tanggal_selesai = '';
     form.jumlah_peserta = '';
     form.status = '';
     form.lokasi = '';
@@ -229,17 +264,50 @@ const openCreateModal = () => {
 const openEditModal = (item: KegiatanItem) => {
     isEditMode.value = true;
     editingId.value = item.id;
+    editingItem.value = item;
     form.clearErrors();
     form.judul = item.judul;
-    form.desa_id = item.desa_id;
+    form.desa_ids = item.desa_ids && item.desa_ids.length > 0
+        ? item.desa_ids.map(id => String(id))
+        : (item.desa_id ? [String(item.desa_id)] : []);
     form.jenis_pembinaan = item.jenis_pembinaan;
     form.tanggal = item.tanggal;
+    form.tanggal_selesai = item.tanggal_selesai || item.tanggal;
     form.jumlah_peserta = item.jumlah_peserta;
     form.status = item.status;
     form.lokasi = item.lokasi || '';
     form.ringkasan_materi = item.ringkasan_materi;
     form.lampiran_files = [];
     isFormModalOpen.value = true;
+};
+
+const isDeleteLampiranModalOpen = ref(false);
+const lampiranToDelete = ref<LampiranItem | null>(null);
+const isDeletingLampiran = ref(false);
+
+const deleteExistingLampiran = (lampiran: LampiranItem) => {
+    lampiranToDelete.value = lampiran;
+    isDeleteLampiranModalOpen.value = true;
+};
+
+const executeDeleteLampiran = () => {
+    if (!lampiranToDelete.value) return;
+    isDeletingLampiran.value = true;
+    router.delete(`/pimpasa/kegiatan/lampiran/${lampiranToDelete.value.id}`, {
+        onSuccess: () => {
+            isDeleteLampiranModalOpen.value = false;
+            isDeletingLampiran.value = false;
+            notify.success('Berkas Dihapus', { description: 'Lampiran berhasil dihapus.' });
+            if (editingItem.value && editingItem.value.lampiran) {
+                editingItem.value.lampiran = editingItem.value.lampiran.filter(l => l.id !== lampiranToDelete.value?.id);
+            }
+            lampiranToDelete.value = null;
+        },
+        onError: () => {
+            isDeletingLampiran.value = false;
+            notify.error('Gagal Menghapus', { description: 'Terjadi kesalahan saat menghapus lampiran.' });
+        }
+    });
 };
 
 const submitForm = () => {
@@ -429,77 +497,118 @@ const getStatusBadge = (status: string) => {
                     </div>
                 </CardHeader>
 
-                <!-- Filter Controls Toolbar Style (Worklist & Disposisi Presisi Style) -->
-                <div class="p-4 bg-slate-50/50 border-b border-slate-100 grid grid-cols-1 sm:grid-cols-12 gap-3">
+                <!-- Filter Controls Toolbar Style (Clean Structured 2-Tier Split Layout) -->
+                <div class="p-4 bg-slate-50/60 border-b border-slate-100 space-y-3">
                     
-                    <!-- Search Input -->
-                    <div class="sm:col-span-6 lg:col-span-3 relative">
-                        <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" :size="15" />
-                        <Input
-                            v-model="search"
-                            type="text"
-                            placeholder="Cari judul, jenis, materi..."
-                            class="pl-9 pr-24 h-9 text-xs rounded-md border-slate-200/90 shadow-2xs bg-white font-sans"
-                            @keyup.enter="applyFilter"
-                        />
-                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-medium pointer-events-none select-none hidden sm:flex items-center gap-1">
-                            <kbd class="bg-slate-100 border border-slate-300 text-slate-500 text-[9px] font-sans font-semibold px-1.5 py-0.5 rounded">Enter</kbd>
-                        </span>
-                    </div>
+                    <!-- Row 1: Search Bar Utama & Reset Button -->
+                    <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+                        <div class="relative w-full flex-1">
+                            <Search :size="15" class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                            <Input
+                                type="text"
+                                v-model="search"
+                                @keyup.enter="applyFilter"
+                                placeholder="Cari judul, jenis, materi..."
+                                class="pl-9 pr-24 text-xs rounded-md bg-white border-slate-200/90 h-9.5 shadow-2xs w-full focus:ring-1 focus:ring-slate-400"
+                            />
+                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-medium pointer-events-none select-none hidden sm:flex items-center gap-1">
+                                <kbd class="bg-slate-100 border border-slate-300 text-slate-500 text-[9px] font-sans font-semibold px-1.5 py-0.5 rounded">Enter</kbd>
+                            </span>
+                        </div>
 
-                    <!-- Select Filter Status -->
-                    <div class="sm:col-span-6 lg:col-span-2">
-                        <Select v-model="selectedStatus" @update:model-value="applyFilter">
-                            <SelectTrigger class="w-full h-9 text-xs font-semibold text-slate-800 border-slate-200/90 rounded-md bg-white shadow-2xs">
-                                <SelectValue placeholder="Status" />
-                            </SelectTrigger>
-                            <SelectContent class="bg-white rounded-lg shadow-xl border-slate-200">
-                                <SelectGroup>
-                                    <SelectItem value="all" class="text-xs font-semibold text-slate-900">Semua Status ({{ stats.total_kegiatan }})</SelectItem>
-                                    <SelectItem value="selesai" class="text-xs font-semibold text-emerald-700">SELESAI ({{ stats.count_selesai ?? 0 }})</SelectItem>
-                                    <SelectItem value="terjadwal" class="text-xs font-semibold text-blue-700">TERJADWAL ({{ stats.count_terjadwal ?? 0 }})</SelectItem>
-                                    <SelectItem value="dibatalkan" class="text-xs font-semibold text-rose-700">DIBATALKAN ({{ stats.count_dibatalkan ?? 0 }})</SelectItem>
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    <!-- Combobox Filter Desa Binaan (Searchable) -->
-                    <div class="sm:col-span-6 lg:col-span-3">
-                        <Combobox
-                            :options="desaComboboxOptions"
-                            :model-value="selectedDesa"
-                            @update:model-value="onDesaChange"
-                            placeholder="Pilih Desa Binaan..."
-                            search-placeholder="Cari desa binaan..."
-                            class="w-full h-9 bg-white border-slate-200/90 text-xs font-semibold text-slate-800 shadow-2xs"
-                        />
-                    </div>
-
-                    <!-- Combobox Filter Jenis Pembinaan (Searchable) -->
-                    <div class="sm:col-span-6 lg:col-span-3">
-                        <Combobox
-                            :options="jenisComboboxOptions"
-                            :model-value="selectedJenis"
-                            @update:model-value="onJenisChange"
-                            placeholder="Jenis Pembinaan..."
-                            search-placeholder="Cari jenis pembinaan..."
-                            class="w-full h-9 bg-white border-slate-200/90 text-xs font-semibold text-slate-800 shadow-2xs"
-                        />
-                    </div>
-
-                    <!-- Reset Filter Button -->
-                    <div class="sm:col-span-12 lg:col-span-1 flex items-center">
                         <button
                             type="button"
                             @click="resetFilter"
-                            class="w-full h-9 px-2.5 bg-white border border-slate-200/90 rounded-md text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                            class="w-full sm:w-auto h-9.5 px-4 bg-white border border-slate-200/90 rounded-md text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer shrink-0"
+                            title="Reset Filter"
                         >
                             <RotateCcw :size="13" class="text-slate-400 shrink-0" />
-                            <span>Reset</span>
+                            <span>Reset Filter</span>
                         </button>
                     </div>
 
+                    <!-- Row 2: 5 Filter Columns with Clear Labels (Dari Tanggal, Sampai Tanggal, Status, Jenis Pembinaan, Desa Binaan) -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                        
+                        <!-- Col 1: Dari Tanggal -->
+                        <div class="space-y-1">
+                            <label class="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                                <Calendar :size="12" class="text-slate-400 shrink-0" /> Dari Tanggal
+                            </label>
+                            <Input
+                                type="date"
+                                v-model="tanggalMulai"
+                                @change="applyFilter"
+                                class="text-xs bg-white border-slate-200/90 h-9 rounded-md shadow-2xs w-full px-3 text-slate-800 font-semibold cursor-pointer"
+                                title="Dari Tanggal"
+                            />
+                        </div>
+
+                        <!-- Col 2: Sampai Tanggal -->
+                        <div class="space-y-1">
+                            <label class="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                                <Calendar :size="12" class="text-slate-400 shrink-0" /> Sampai Tanggal
+                            </label>
+                            <Input
+                                type="date"
+                                v-model="tanggalSelesai"
+                                @change="applyFilter"
+                                class="text-xs bg-white border-slate-200/90 h-9 rounded-md shadow-2xs w-full px-3 text-slate-800 font-semibold cursor-pointer"
+                                title="Sampai Tanggal"
+                            />
+                        </div>
+
+                        <!-- Col 3: Status Filter -->
+                        <div class="space-y-1">
+                            <label class="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                                <Filter :size="12" class="text-slate-400 shrink-0" /> Status
+                            </label>
+                            <Select v-model="selectedStatus" @update:model-value="applyFilter">
+                                <SelectTrigger class="w-full bg-white border-slate-200/90 rounded-md text-xs font-semibold text-slate-800 shadow-2xs h-9">
+                                    <SelectValue placeholder="Semua Status" />
+                                </SelectTrigger>
+                                <SelectContent class="rounded-lg shadow-xl border-slate-200 bg-white">
+                                    <SelectGroup>
+                                        <SelectItem value="all" class="text-xs font-semibold text-slate-900">Semua Status ({{ stats.total_kegiatan }})</SelectItem>
+                                        <SelectItem value="selesai" class="text-xs font-semibold text-emerald-700">SELESAI ({{ stats.count_selesai ?? 0 }})</SelectItem>
+                                        <SelectItem value="terjadwal" class="text-xs font-semibold text-blue-700">TERJADWAL ({{ stats.count_terjadwal ?? 0 }})</SelectItem>
+                                        <SelectItem value="dibatalkan" class="text-xs font-semibold text-rose-700">DIBATALKAN ({{ stats.count_dibatalkan ?? 0 }})</SelectItem>
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <!-- Col 4: Jenis Pembinaan Filter -->
+                        <div class="space-y-1">
+                            <label class="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                                <Tag :size="12" class="text-slate-400 shrink-0" /> Jenis Pembinaan
+                            </label>
+                            <Combobox
+                                :options="jenisComboboxOptions"
+                                :model-value="selectedJenis"
+                                @update:model-value="onJenisChange"
+                                placeholder="Semua Jenis Pembinaan"
+                                search-placeholder="Cari jenis pembinaan..."
+                                class="w-full h-9 bg-white border-slate-200/90 text-xs font-semibold text-slate-800 shadow-2xs"
+                            />
+                        </div>
+
+                        <!-- Col 5: Desa Binaan Filter -->
+                        <div class="space-y-1">
+                            <label class="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                                <MapPin :size="12" class="text-slate-400 shrink-0" /> Desa Binaan
+                            </label>
+                            <Combobox
+                                :options="desaComboboxOptions"
+                                :model-value="selectedDesa"
+                                @update:model-value="onDesaChange"
+                                placeholder="Semua Desa Binaan"
+                                search-placeholder="Cari desa binaan..."
+                                class="w-full h-9 bg-white border-slate-200/90 text-xs font-semibold text-slate-800 shadow-2xs"
+                            />
+                        </div>
+
+                    </div>
                 </div>
 
                 <!-- Grid List Card Agenda Kegiatan -->
@@ -536,9 +645,20 @@ const getStatusBadge = (status: string) => {
 
                             <div class="pt-3 border-t border-slate-100 space-y-2">
                                 <div class="grid grid-cols-2 gap-2 text-xs text-slate-600">
-                                    <div class="flex items-center gap-1.5">
-                                        <MapPin :size="14" class="text-slate-400 shrink-0" />
-                                        <span class="truncate font-semibold text-slate-800">{{ item.desa_nama }}</span>
+                                    <div class="flex items-start gap-1.5 col-span-2">
+                                        <MapPin :size="14" class="text-slate-400 shrink-0 mt-0.5" />
+                                        <div class="flex flex-wrap gap-1 items-center">
+                                            <template v-if="item.desa_nama_list && item.desa_nama_list.length > 0">
+                                                <span
+                                                    v-for="(namaDesa, idx) in item.desa_nama_list"
+                                                    :key="idx"
+                                                    class="text-[10px] font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200"
+                                                >
+                                                    {{ namaDesa }}
+                                                </span>
+                                            </template>
+                                            <span v-else class="font-semibold text-slate-800">{{ item.desa_nama || '-' }}</span>
+                                        </div>
                                     </div>
                                     <div class="flex items-center gap-1.5">
                                         <Users :size="14" class="text-blue-600 shrink-0" />
@@ -546,9 +666,14 @@ const getStatusBadge = (status: string) => {
                                     </div>
                                     <div class="flex items-center gap-1.5">
                                         <Calendar :size="14" class="text-slate-400 shrink-0" />
-                                        <span class="font-medium tabular-nums text-slate-600">{{ item.tanggal }}</span>
+                                        <span class="font-medium tabular-nums text-slate-600">
+                                            {{ item.tanggal }}
+                                            <template v-if="item.tanggal_selesai && item.tanggal_selesai !== item.tanggal">
+                                                s/d {{ item.tanggal_selesai }}
+                                            </template>
+                                        </span>
                                     </div>
-                                    <div class="flex items-center gap-1.5">
+                                    <div class="flex items-center gap-1.5 col-span-2">
                                         <Building2 :size="14" class="text-slate-400 shrink-0" />
                                         <span class="truncate font-medium text-slate-500">{{ item.lokasi || '-' }}</span>
                                     </div>
@@ -657,18 +782,15 @@ const getStatusBadge = (status: string) => {
                                 </div>
 
                                 <div>
-                                    <Label class="font-semibold text-slate-800 text-xs tracking-tight block mb-1.5">Desa Sasaran <span class="text-rose-500">*</span></Label>
-                                    <Select v-model="form.desa_id">
-                                        <SelectTrigger class="h-9 text-xs border-slate-300 rounded-md bg-white font-sans">
-                                            <SelectValue placeholder="Pilih Desa Binaan" />
-                                        </SelectTrigger>
-                                        <SelectContent class="bg-white rounded-lg shadow-xl">
-                                            <SelectItem v-for="d in desaList" :key="d.id" :value="d.id">
-                                                {{ d.nama }}
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <p v-if="form.errors.desa_id" class="text-[11px] text-rose-500 mt-1">{{ form.errors.desa_id }}</p>
+                                    <Label class="font-semibold text-slate-800 text-xs tracking-tight block mb-1.5">Desa Sasaran (Bisa Pilih Banyak) <span class="text-rose-500">*</span></Label>
+                                    <MultiCombobox
+                                        v-model="form.desa_ids"
+                                        :options="desaFormMultiOptions"
+                                        placeholder="Pilih Desa Sasaran..."
+                                        search-placeholder="Cari desa sasaran..."
+                                        class="w-full bg-white border-slate-300"
+                                    />
+                                    <p v-if="form.errors.desa_ids" class="text-[11px] text-rose-500 mt-1">{{ form.errors.desa_ids }}</p>
                                 </div>
 
                                 <div>
@@ -684,13 +806,15 @@ const getStatusBadge = (status: string) => {
                                 </div>
 
                                 <div>
-                                    <Label class="font-semibold text-slate-800 text-xs tracking-tight block mb-1.5">Lokasi Pelaksanaan</Label>
+                                    <Label class="font-semibold text-slate-800 text-xs tracking-tight block mb-1.5">Lokasi Pelaksanaan <span class="text-rose-500">*</span></Label>
                                     <Input
                                         v-model="form.lokasi"
                                         type="text"
                                         placeholder="misal: Balai Desa"
                                         class="h-9 px-3.5 rounded-md border-slate-300 text-xs focus:ring-2 focus:ring-primary/40 shadow-2xs font-sans"
+                                        required
                                     />
+                                    <p v-if="form.errors.lokasi" class="text-[11px] text-rose-500 mt-1">{{ form.errors.lokasi }}</p>
                                 </div>
                             </div>
 
@@ -698,7 +822,7 @@ const getStatusBadge = (status: string) => {
                             <div class="space-y-3.5">
                                 <div class="grid grid-cols-2 gap-3">
                                     <div>
-                                        <Label class="font-semibold text-slate-800 text-xs tracking-tight block mb-1.5">Tanggal <span class="text-rose-500">*</span></Label>
+                                        <Label class="font-semibold text-slate-800 text-xs tracking-tight block mb-1.5">Tanggal Mulai <span class="text-rose-500">*</span></Label>
                                         <Input
                                             v-model="form.tanggal"
                                             type="date"
@@ -708,6 +832,20 @@ const getStatusBadge = (status: string) => {
                                         <p v-if="form.errors.tanggal" class="text-[11px] text-rose-500 mt-1">{{ form.errors.tanggal }}</p>
                                     </div>
 
+                                    <div>
+                                        <Label class="font-semibold text-slate-800 text-xs tracking-tight block mb-1.5">Tanggal Selesai <span class="text-rose-500">*</span></Label>
+                                        <Input
+                                            v-model="form.tanggal_selesai"
+                                            type="date"
+                                            :min="form.tanggal"
+                                            class="h-9 px-3 text-xs rounded-md border-slate-300 focus:ring-2 focus:ring-primary/40 shadow-2xs font-sans"
+                                            required
+                                        />
+                                        <p v-if="form.errors.tanggal_selesai" class="text-[11px] text-rose-500 mt-1">{{ form.errors.tanggal_selesai }}</p>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-3">
                                     <div>
                                         <Label class="font-semibold text-slate-800 text-xs tracking-tight block mb-1.5">Peserta <span class="text-rose-500">*</span></Label>
                                         <Input
@@ -720,21 +858,21 @@ const getStatusBadge = (status: string) => {
                                         />
                                         <p v-if="form.errors.jumlah_peserta" class="text-[11px] text-rose-500 mt-1">{{ form.errors.jumlah_peserta }}</p>
                                     </div>
-                                </div>
 
-                                <div>
-                                    <Label class="font-semibold text-slate-800 text-xs tracking-tight block mb-1.5">Status <span class="text-rose-500">*</span></Label>
-                                    <Select v-model="form.status">
-                                        <SelectTrigger class="h-9 text-xs border-slate-300 rounded-md bg-white font-sans">
-                                            <SelectValue placeholder="Pilih Status" />
-                                        </SelectTrigger>
-                                        <SelectContent class="bg-white rounded-lg shadow-xl">
-                                            <SelectItem value="selesai">SELESAI</SelectItem>
-                                            <SelectItem value="terjadwal">TERJADWAL</SelectItem>
-                                            <SelectItem value="dibatalkan">DIBATALKAN</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <p v-if="form.errors.status" class="text-[11px] text-rose-500 mt-1">{{ form.errors.status }}</p>
+                                    <div>
+                                        <Label class="font-semibold text-slate-800 text-xs tracking-tight block mb-1.5">Status <span class="text-rose-500">*</span></Label>
+                                        <Select v-model="form.status">
+                                            <SelectTrigger class="h-9 text-xs border-slate-300 rounded-md bg-white font-sans">
+                                                <SelectValue placeholder="Pilih Status" />
+                                            </SelectTrigger>
+                                            <SelectContent class="bg-white rounded-lg shadow-xl">
+                                                <SelectItem value="selesai">SELESAI</SelectItem>
+                                                <SelectItem value="terjadwal">TERJADWAL</SelectItem>
+                                                <SelectItem value="dibatalkan">DIBATALKAN</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <p v-if="form.errors.status" class="text-[11px] text-rose-500 mt-1">{{ form.errors.status }}</p>
+                                    </div>
                                 </div>
 
                                 <div>
@@ -750,15 +888,55 @@ const getStatusBadge = (status: string) => {
                                 </div>
 
                                 <div>
-                                    <Label class="font-semibold text-slate-800 text-xs tracking-tight block mb-1.5">Upload Foto Dokumentasi / Lampiran</Label>
+                                    <Label class="font-semibold text-slate-800 text-xs tracking-tight block mb-1.5">
+                                        Upload Foto Dokumentasi / Lampiran Baru
+                                        <span class="text-rose-500" v-if="!isEditMode">*</span>
+                                    </Label>
                                     <Input
                                         type="file"
                                         multiple
                                         accept="image/*,.pdf"
                                         class="h-9 px-3 text-xs rounded-md border-slate-300 file:mr-3 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200"
                                         @change="handleFileChange"
+                                        :required="!isEditMode && (!editingItem?.lampiran || editingItem.lampiran.length === 0)"
                                     />
                                     <p class="text-[10px] text-slate-400 mt-1">Format: JPG, PNG, PDF (Maksimal 2MB per file)</p>
+                                    <p v-if="form.errors.lampiran_files" class="text-[11px] text-rose-500 mt-1">{{ form.errors.lampiran_files }}</p>
+
+                                    <!-- Daftar Lampiran Terpasang Saat Ini (Edit Mode) -->
+                                    <div v-if="isEditMode && editingItem?.lampiran && editingItem.lampiran.length > 0" class="mt-3 space-y-1.5">
+                                        <span class="text-[11px] font-semibold text-slate-700 block">Berkas Lampiran Tersimpan:</span>
+                                        <div class="space-y-1 max-h-36 overflow-y-auto pr-1">
+                                            <div
+                                                v-for="file in editingItem.lampiran"
+                                                :key="file.id"
+                                                class="flex items-center justify-between p-2 rounded-md border border-slate-200 bg-slate-50 text-xs shadow-2xs"
+                                            >
+                                                <div class="flex items-center gap-2 min-w-0 pr-2">
+                                                    <Paperclip :size="13" class="text-primary shrink-0" />
+                                                    <span class="truncate font-medium text-slate-700">{{ file.file_name }}</span>
+                                                </div>
+                                                <div class="flex items-center gap-1.5 shrink-0">
+                                                    <a
+                                                        :href="file.file_path"
+                                                        target="_blank"
+                                                        class="p-1 rounded text-primary hover:bg-primary/10 transition-colors"
+                                                        title="Lihat Berkas"
+                                                    >
+                                                        <ExternalLink :size="13" />
+                                                    </a>
+                                                    <button
+                                                        type="button"
+                                                        @click="deleteExistingLampiran(file)"
+                                                        class="p-1 rounded text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                                        title="Hapus Berkas Ini"
+                                                    >
+                                                        <Trash2 :size="13" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -814,9 +992,20 @@ const getStatusBadge = (status: string) => {
 
                         <!-- Grid Meta Information -->
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 bg-slate-50/80 p-4 rounded-xl border border-slate-200/70">
-                            <div class="space-y-0.5">
+                            <div class="space-y-0.5 sm:col-span-2">
                                 <span class="text-slate-400 font-semibold block text-[10px] uppercase tracking-wider">Desa Sasaran</span>
-                                <span class="font-bold text-slate-900 text-xs">{{ selectedDetail.desa_nama }}</span>
+                                <div class="flex flex-wrap gap-1 items-center pt-0.5">
+                                    <template v-if="selectedDetail.desa_nama_list && selectedDetail.desa_nama_list.length > 0">
+                                        <span
+                                            v-for="(namaDesa, idx) in selectedDetail.desa_nama_list"
+                                            :key="idx"
+                                            class="text-xs font-bold text-slate-800 bg-white px-2.5 py-0.5 rounded border border-slate-200 shadow-2xs"
+                                        >
+                                            {{ namaDesa }}
+                                        </span>
+                                    </template>
+                                    <span v-else class="font-bold text-slate-900 text-xs">{{ selectedDetail.desa_nama || '-' }}</span>
+                                </div>
                             </div>
                             <div class="space-y-0.5">
                                 <span class="text-slate-400 font-semibold block text-[10px] uppercase tracking-wider">Lokasi Kegiatan</span>
@@ -824,7 +1013,12 @@ const getStatusBadge = (status: string) => {
                             </div>
                             <div class="space-y-0.5">
                                 <span class="text-slate-400 font-semibold block text-[10px] uppercase tracking-wider">Tanggal Pelaksanaan</span>
-                                <span class="font-bold text-slate-800 text-xs">{{ selectedDetail.tanggal }}</span>
+                                <span class="font-bold text-slate-800 text-xs">
+                                    {{ selectedDetail.tanggal }}
+                                    <template v-if="selectedDetail.tanggal_selesai && selectedDetail.tanggal_selesai !== selectedDetail.tanggal">
+                                        s/d {{ selectedDetail.tanggal_selesai }}
+                                    </template>
+                                </span>
                             </div>
                             <div class="space-y-0.5">
                                 <span class="text-slate-400 font-semibold block text-[10px] uppercase tracking-wider">Jumlah Peserta</span>
@@ -888,6 +1082,16 @@ const getStatusBadge = (status: string) => {
                 description="Apakah Anda yakin ingin menghapus data kegiatan pembinaan ini? Seluruh riwayat akan dihapus dari sistem."
                 :loading="isDeleting"
                 @confirm="executeDelete"
+            />
+
+            <!-- CONFIRM DELETE MODAL LAMPIRAN -->
+            <ConfirmDeleteModal
+                v-model:open="isDeleteLampiranModalOpen"
+                title="Hapus Berkas Lampiran"
+                :item-name="lampiranToDelete?.file_name"
+                description="Apakah Anda yakin ingin menghapus berkas lampiran ini dari agenda kegiatan pembinaan?"
+                :loading="isDeletingLampiran"
+                @confirm="executeDeleteLampiran"
             />
 
         </div>

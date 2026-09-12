@@ -2,7 +2,7 @@
 import {
     Building2,
     FileText,
-    TrendingUp,
+    Users,
     AlertTriangle,
     CheckCircle2
 } from 'lucide-vue-next';
@@ -15,6 +15,8 @@ interface KpiProps {
     laporan_selesai: number;
     resolution_rate: number;
     sla_breached_count: number;
+    total_kegiatan_pembinaan?: number;
+    total_peserta_pembinaan?: number;
 }
 
 const props = defineProps<{
@@ -65,22 +67,22 @@ const props = defineProps<{
             </CardContent>
         </Card>
 
-        <!-- Card 3: SLA Resolution Rate -->
+        <!-- Card 3: Kegiatan Pembinaan Desa Binaan -->
         <Card class="border-slate-200/80 shadow-2xs rounded-lg bg-white relative overflow-hidden group">
             <div class="absolute -right-4 -bottom-6 text-slate-200/70 pointer-events-none group-hover:text-slate-300/80 transition-colors">
-                <TrendingUp :size="105" stroke-width="1.0" />
+                <Users :size="105" stroke-width="1.0" />
             </div>
 
             <CardContent class="p-4 sm:p-5 flex flex-col justify-between h-full min-h-[92px] relative z-10">
                 <div class="space-y-0.5 pr-12">
-                    <span class="text-xs font-semibold text-slate-500 block leading-tight">Rate Penyelesaian SLA</span>
+                    <span class="text-xs font-semibold text-slate-500 block leading-tight">Kegiatan Pembinaan Desa</span>
                     <div class="text-3xl font-bold text-slate-900 font-mono tracking-tight leading-none pt-1">
-                        {{ kpi.resolution_rate }}%
+                        {{ kpi.total_kegiatan_pembinaan ?? 0 }} <span class="text-xs font-semibold font-sans text-slate-500">Kegiatan</span>
                     </div>
                 </div>
                 <div class="pt-2">
-                    <p class="text-[11px] text-slate-500 font-medium flex items-center gap-1">
-                        <CheckCircle2 :size="12" class="text-slate-500" /> Target SLA Terpenuhi
+                    <p class="text-[11px] text-slate-500 font-medium">
+                        Total Peserta Terjangkau: <strong class="font-mono text-slate-900">{{ kpi.total_peserta_pembinaan ?? 0 }}</strong> Orang
                     </p>
                 </div>
             </CardContent>
@@ -100,7 +102,7 @@ const props = defineProps<{
                     </div>
                 </div>
                 <div class="pt-2">
-                    <p class="text-[11px] text-red-600 font-medium">Melewati SLA 2x24 Jam</p>
+                    <p class="text-[11px] text-red-600 font-medium">Melewati SLA 1x24 Jam</p>
                 </div>
             </CardContent>
         </Card>

@@ -88,12 +88,11 @@ class DesaSettingsController extends Controller
     {
         $validated = $request->validate([
             'current_password' => ['required', 'current_password'],
-            'new_password' => ['required', 'string', 'min:8', 'confirmed'],
+            'new_password' => ['required', 'string', Password::min(8)->mixedCase()->numbers()->symbols(), 'confirmed'],
         ], [
             'current_password.required' => 'Kata sandi saat ini wajib diisi.',
             'current_password.current_password' => 'Kata sandi saat ini tidak sesuai.',
             'new_password.required' => 'Kata sandi baru wajib diisi.',
-            'new_password.min' => 'Kata sandi baru minimal 8 karakter.',
             'new_password.confirmed' => 'Konfirmasi kata sandi baru tidak cocok.',
         ]);
 

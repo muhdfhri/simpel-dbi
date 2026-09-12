@@ -60,7 +60,7 @@ const filteredSlaIncidents = computed(() => {
 
 const exportPdfReport = () => {
     notify.info('Mengunduh Laporan PDF Eksekutif...', {
-        description: 'Format Resmi Dinas Kanwil Kemenkumham Sumut sedang dibuat.'
+        description: 'Format Resmi Dinas Kanwil Ditjenim Sumut sedang dibuat.'
     });
 };
 
@@ -182,7 +182,7 @@ const exportExcelReport = () => {
                 <!-- Left 2 Columns: SLA Control Center Table & UPT Compliance Scorecard -->
                 <div class="lg:col-span-2 space-y-5">
                     <SlaControlTable :incidents="filteredSlaIncidents" />
-                    <UptComplianceScorecard :scorecard="uptScorecard" />
+                    <UptComplianceScorecard :scorecards="uptScorecard" />
                 </div>
 
                 <!-- Right 1 Column: Live Activity Feed Log -->

@@ -77,6 +77,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/laporan/{laporan}/export-pdf', [DesaLaporanController::class, 'exportDetailPdf'])->name('laporan.export-detail-pdf');
         Route::get('/laporan/{laporan}/edit', [DesaLaporanController::class, 'edit'])->name('laporan.edit');
         Route::post('/laporan/{laporan}/update', [DesaLaporanController::class, 'update'])->name('laporan.update');
+        Route::delete('/laporan/lampiran/{lampiran}', [DesaLaporanController::class, 'destroyLampiran'])->name('laporan.lampiran.destroy');
 
         // Status & Riwayat Tiket (Rekapitulasi & Audit Trail)
         Route::get('/riwayat', [\App\Http\Controllers\Desa\RiwayatController::class, 'index'])->name('riwayat.index');
@@ -138,6 +139,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/kegiatan', [\App\Http\Controllers\Pimpasa\KegiatanPembinaanController::class, 'store'])->name('kegiatan.store');
         Route::put('/kegiatan/{kegiatan}', [\App\Http\Controllers\Pimpasa\KegiatanPembinaanController::class, 'update'])->name('kegiatan.update');
         Route::delete('/kegiatan/{kegiatan}', [\App\Http\Controllers\Pimpasa\KegiatanPembinaanController::class, 'destroy'])->name('kegiatan.destroy');
+        Route::delete('/kegiatan/lampiran/{lampiran}', [\App\Http\Controllers\Pimpasa\KegiatanPembinaanController::class, 'destroyLampiran'])->name('kegiatan.lampiran.destroy');
         Route::get('/kegiatan/export-pdf', [\App\Http\Controllers\Pimpasa\KegiatanPembinaanController::class, 'exportPdf'])->name('kegiatan.export-pdf');
         Route::get('/kegiatan/export-excel', [\App\Http\Controllers\Pimpasa\KegiatanPembinaanController::class, 'exportExcel'])->name('kegiatan.export-excel');
 
@@ -165,6 +167,7 @@ Route::middleware('auth')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::middleware('role:kanwil')->prefix('kanwil')->name('kanwil.')->group(function () {
+        Route::match(['get', 'post'], '/dashboard/export-pdf', [\App\Http\Controllers\Kanwil\DashboardController::class, 'exportExecutivePdf'])->name('dashboard.export-pdf');
         Route::get('/dashboard', [\App\Http\Controllers\Kanwil\DashboardController::class, 'index'])->name('dashboard');
 
         // Menu 1: Master Data System (171 Desa, 53 PIMPASA, 10 UPT)

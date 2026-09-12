@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { router } from '@inertiajs/vue3';
 import AppLayout from '@/components/layout/AppLayout.vue';
 import {
     FileSpreadsheet,
@@ -9,7 +10,9 @@ import {
     Users,
     Building2,
     Award,
-    RotateCcw
+    RotateCcw,
+    Calendar,
+    Filter
 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -62,20 +65,54 @@ const props = defineProps<{
     };
     kegiatanList: KegiatanItem[];
     uptListOptions: UptOption[];
+    filters?: {
+        search?: string;
+        upt_id?: string;
+        jenis?: string;
+        tanggal_mulai?: string;
+        tanggal_selesai?: string;
+    };
 }>();
 
-const searchInput = ref<string>('');
-const filterUpt = ref<string>('all');
-const filterJenis = ref<string>('all');
+const searchInput = ref<string>(props.filters?.search || '');
+const filterUpt = ref<string>(props.filters?.upt_id || 'all');
+const filterJenis = ref<string>(props.filters?.jenis || 'all');
+const tanggalMulai = ref<string>(props.filters?.tanggal_mulai || '');
+const tanggalSelesai = ref<string>(props.filters?.tanggal_selesai || '');
+
+const applyFilter = () => {
+    const params: Record<string, string> = {};
+    if (searchInput.value) params.search = searchInput.value;
+    if (filterUpt.value && filterUpt.value !== 'all') params.upt_id = filterUpt.value;
+    if (filterJenis.value && filterJenis.value !== 'all') params.jenis = filterJenis.value;
+    if (tanggalMulai.value) params.tanggal_mulai = tanggalMulai.value;
+    if (tanggalSelesai.value) params.tanggal_selesai = tanggalSelesai.value;
+
+    router.get('/kanwil/monitoring/kegiatan-pembinaan', params, { preserveState: true, replace: true });
+};
+
+const onUptChange = (val: any) => {
+    filterUpt.value = String(val || 'all');
+    applyFilter();
+};
+
+const onJenisChange = (val: any) => {
+    filterJenis.value = String(val || 'all');
+    applyFilter();
+};
 
 const filterByJenis = (jenisVal: string) => {
     filterJenis.value = jenisVal;
+    applyFilter();
 };
 
 const resetFilter = () => {
     searchInput.value = '';
     filterUpt.value = 'all';
     filterJenis.value = 'all';
+    tanggalMulai.value = '';
+    tanggalSelesai.value = '';
+    applyFilter();
 };
 
 const filteredKegiatan = computed(() => {
@@ -152,6 +189,8 @@ const exportExcel = () => {
     if (filterUpt.value && filterUpt.value !== 'all') params.append('upt_id', filterUpt.value);
     if (filterJenis.value && filterJenis.value !== 'all') params.append('jenis', filterJenis.value);
     if (searchInput.value) params.append('search', searchInput.value);
+    if (tanggalMulai.value) params.append('tanggal_mulai', tanggalMulai.value);
+    if (tanggalSelesai.value) params.append('tanggal_selesai', tanggalSelesai.value);
     window.location.href = `/kanwil/monitoring/kegiatan-pembinaan/export-excel?${params.toString()}`;
 };
 
@@ -160,6 +199,8 @@ const exportPdf = () => {
     if (filterUpt.value && filterUpt.value !== 'all') params.append('upt_id', filterUpt.value);
     if (filterJenis.value && filterJenis.value !== 'all') params.append('jenis', filterJenis.value);
     if (searchInput.value) params.append('search', searchInput.value);
+    if (tanggalMulai.value) params.append('tanggal_mulai', tanggalMulai.value);
+    if (tanggalSelesai.value) params.append('tanggal_selesai', tanggalSelesai.value);
     window.open(`/kanwil/monitoring/kegiatan-pembinaan/export-pdf?${params.toString()}`, '_blank');
 };
 </script>
@@ -286,57 +327,98 @@ const exportPdf = () => {
                     </div>
                 </div>
 
-                <!-- Clean Filter Toolbar -->
-                <div class="p-4 bg-slate-50/50 border-b border-slate-100 grid grid-cols-1 sm:grid-cols-12 gap-3">
+                <!-- Toolbar Filter (Clean Structured 2-Tier Split Layout) -->
+                <div class="p-4 bg-slate-50/60 border-b border-slate-100 space-y-3">
                     
-                    <!-- Search Input -->
-                    <div class="sm:col-span-6 lg:col-span-4 relative">
-                        <Search :size="15" class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <Input
-                            type="text"
-                            v-model="searchInput"
-                            placeholder="Cari judul, PIMPASA, desa, UPT..."
-                            class="pl-9 pr-24 text-xs rounded-md bg-white border-slate-200/90 h-9 shadow-2xs"
-                        />
-                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-medium pointer-events-none select-none hidden sm:flex items-center gap-1">
-                            <kbd class="bg-slate-100 border border-slate-300 text-slate-500 text-[9px] font-sans font-semibold px-1.5 py-0.5 rounded">Enter</kbd>
-                        </span>
-                    </div>
+                    <!-- Row 1: Search Bar Utama & Reset Button -->
+                    <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+                        <div class="relative w-full flex-1">
+                            <Search :size="15" class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                            <Input
+                                type="text"
+                                v-model="searchInput"
+                                @keyup.enter="applyFilter"
+                                placeholder="Cari judul, PIMPASA, desa, UPT..."
+                                class="pl-9 pr-24 text-xs rounded-md bg-white border-slate-200/90 h-9.5 shadow-2xs w-full focus:ring-1 focus:ring-slate-400"
+                            />
+                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-medium pointer-events-none select-none hidden sm:flex items-center gap-1">
+                                <kbd class="bg-slate-100 border border-slate-300 text-slate-500 text-[9px] font-sans font-semibold px-1.5 py-0.5 rounded">Enter</kbd>
+                            </span>
+                        </div>
 
-                    <!-- Filter Satker UPT (Searchable Combobox) -->
-                    <div class="sm:col-span-6 lg:col-span-4">
-                        <Combobox
-                            v-model="filterUpt"
-                            :options="uptComboboxOptions"
-                            placeholder="Semua Satker UPT Imigrasi"
-                            searchPlaceholder="Cari Kanim / UPT..."
-                            class="w-full h-9 bg-white border-slate-200/90 rounded-md text-xs font-semibold text-slate-800 shadow-2xs"
-                        />
-                    </div>
-
-                    <!-- Filter Jenis Pembinaan (Searchable Combobox) -->
-                    <div class="sm:col-span-6 lg:col-span-3">
-                        <Combobox
-                            v-model="filterJenis"
-                            :options="jenisComboboxOptions"
-                            placeholder="Semua Jenis Pembinaan"
-                            searchPlaceholder="Cari Jenis Pembinaan..."
-                            class="w-full h-9 bg-white border-slate-200/90 rounded-md text-xs font-semibold text-slate-800 shadow-2xs"
-                        />
-                    </div>
-
-                    <!-- Reset Filter Button -->
-                    <div class="sm:col-span-12 lg:col-span-1 flex items-center">
                         <button
                             type="button"
                             @click="resetFilter"
-                            class="w-full h-9 px-2.5 bg-white border border-slate-200/90 rounded-md text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                            class="w-full sm:w-auto h-9.5 px-4 bg-white border border-slate-200/90 rounded-md text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer shrink-0"
+                            title="Reset Filter"
                         >
                             <RotateCcw :size="13" class="text-slate-400 shrink-0" />
-                            <span>Reset</span>
+                            <span>Reset Filter</span>
                         </button>
                     </div>
 
+                    <!-- Row 2: 4 Filter Columns with Clear Labels (Dari Tanggal, Sampai Tanggal, Jenis Pembinaan, Satker UPT Imigrasi) -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        
+                        <!-- Col 1: Dari Tanggal -->
+                        <div class="space-y-1">
+                            <label class="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                                <Calendar :size="12" class="text-slate-400 shrink-0" /> Dari Tanggal
+                            </label>
+                            <Input
+                                type="date"
+                                v-model="tanggalMulai"
+                                @change="applyFilter"
+                                class="text-xs bg-white border-slate-200/90 h-9 rounded-md shadow-2xs w-full px-3 text-slate-800 font-semibold cursor-pointer"
+                                title="Dari Tanggal"
+                            />
+                        </div>
+
+                        <!-- Col 2: Sampai Tanggal -->
+                        <div class="space-y-1">
+                            <label class="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                                <Calendar :size="12" class="text-slate-400 shrink-0" /> Sampai Tanggal
+                            </label>
+                            <Input
+                                type="date"
+                                v-model="tanggalSelesai"
+                                @change="applyFilter"
+                                class="text-xs bg-white border-slate-200/90 h-9 rounded-md shadow-2xs w-full px-3 text-slate-800 font-semibold cursor-pointer"
+                                title="Sampai Tanggal"
+                            />
+                        </div>
+
+                        <!-- Col 3: Filter Jenis Pembinaan -->
+                        <div class="space-y-1">
+                            <label class="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                                <Filter :size="12" class="text-slate-400 shrink-0" /> Jenis Pembinaan
+                            </label>
+                            <Combobox
+                                :options="jenisComboboxOptions"
+                                :model-value="filterJenis"
+                                @update:model-value="onJenisChange"
+                                placeholder="Semua Jenis Pembinaan..."
+                                search-placeholder="Cari Jenis Pembinaan..."
+                                class="w-full h-9 bg-white border-slate-200/90 text-xs font-semibold text-slate-800 shadow-2xs"
+                            />
+                        </div>
+
+                        <!-- Col 4: Filter Satker UPT (Searchable Combobox) -->
+                        <div class="space-y-1">
+                            <label class="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                                <Building2 :size="12" class="text-slate-400 shrink-0" /> Satker UPT Imigrasi
+                            </label>
+                            <Combobox
+                                :options="uptComboboxOptions"
+                                :model-value="filterUpt"
+                                @update:model-value="onUptChange"
+                                placeholder="Semua Satker UPT Imigrasi..."
+                                search-placeholder="Cari Kanim / UPT..."
+                                class="w-full h-9 bg-white border-slate-200/90 text-xs font-semibold text-slate-800 shadow-2xs"
+                            />
+                        </div>
+
+                    </div>
                 </div>
 
                 <!-- Table Component -->

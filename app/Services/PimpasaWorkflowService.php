@@ -45,15 +45,20 @@ class PimpasaWorkflowService
             ->take(5)
             ->get();
 
-        // Monthly Trend Data (6 Bulan Terakhir)
-        $monthlyChart = [
-            ['month' => 'Apr', 'total' => 2],
-            ['month' => 'Mei', 'total' => 4],
-            ['month' => 'Jun', 'total' => 3],
-            ['month' => 'Jul', 'total' => 5],
-            ['month' => 'Agu', 'total' => 8],
-            ['month' => 'Sep', 'total' => max($total, 5)],
-        ];
+        // Monthly Trend Data (6 Bulan Terakhir Real-Time)
+        $monthlyChart = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $date = now()->subMonths($i);
+            $monthName = $date->translatedFormat('M');
+            $count = (clone $baseQuery)
+                ->whereYear('created_at', $date->year)
+                ->whereMonth('created_at', $date->month)
+                ->count();
+            $monthlyChart[] = [
+                'month' => $monthName,
+                'total' => $count,
+            ];
+        }
 
         // Kategori Sebaran Data (Dynamic dari tabel kategori_laporans)
         $fallbackPalette = ['#0E7490', '#4F46E5', '#BE185D', '#92400E'];
@@ -80,7 +85,7 @@ class PimpasaWorkflowService
             'diverifikasi' => $diverifikasi,
             'ditindaklanjuti' => $ditindaklanjuti,
             'selesai' => $selesai,
-            'resolution_rate' => $total > 0 ? round(($selesai / $total) * 100, 1) : 100,
+            'resolution_rate' => $total > 0 ? round(($selesai / $total) * 100, 1) : 0,
             'sla_warning_list' => $slaWarningList,
             'monthly_chart' => $monthlyChart,
             'kategori_chart' => $kategoriChart,
@@ -112,6 +117,14 @@ class PimpasaWorkflowService
         // Filter desa binaan
         if (! empty($filters['desa_id']) && $filters['desa_id'] !== 'all') {
             $query->where('desa_id', $filters['desa_id']);
+        }
+
+        // Filter rentang tanggal
+        if (! empty($filters['tanggal_mulai'])) {
+            $query->whereDate('created_at', '>=', $filters['tanggal_mulai']);
+        }
+        if (! empty($filters['tanggal_selesai'])) {
+            $query->whereDate('created_at', '<=', $filters['tanggal_selesai']);
         }
 
         // Search
@@ -176,6 +189,10 @@ class PimpasaWorkflowService
 
             // 4. Kirim Notifikasi (In-App + ntfy Push/Email) ke Perangkat Desa (Direct Pelapor)
             $desaUsers = User::where('role', 'desa')->where('desa_id', $laporan->desa_id)->get();
+            if ($desaUsers->isEmpty()) {
+                $desaUsers = User::where('role', 'desa')->take(1)->get();
+            }
+
             $notifType = match ($keputusan) {
                 'diverifikasi' => 'success',
                 'minta_perbaikan' => 'warning',
@@ -207,9 +224,9 @@ class PimpasaWorkflowService
             }
 
             // Broadcast Notifikasi ke Admin Kanwil
-            $kanwilUsers = User::where('role', 'kanwil')->get();
-            foreach ($kanwilUsers as $kanwil) {
-                $kanwil->notify(new LaporanNotification(
+            $kanwilUser = User::where('role', 'kanwil')->first();
+            if ($kanwilUser) {
+                $kanwilUser->notify(new LaporanNotification(
                     title: "Update Verifikasi Tiket {$laporan->kode_tiket}",
                     message: "Petugas PIMPASA UPT {$laporan->desa?->upt?->nama} telah memverifikasi laporan dengan status: " . strtoupper($keputusan),
                     type: $notifType,
@@ -332,6 +349,13 @@ class PimpasaWorkflowService
             $query->where('desa_id', $filters['desa_id']);
         }
 
+        if (! empty($filters['tanggal_mulai'])) {
+            $query->whereDate('created_at', '>=', $filters['tanggal_mulai']);
+        }
+        if (! empty($filters['tanggal_selesai'])) {
+            $query->whereDate('created_at', '<=', $filters['tanggal_selesai']);
+        }
+
         if (! empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
@@ -347,14 +371,23 @@ class PimpasaWorkflowService
     /**
      * Ambil daftar desa binaan UPT Imigrasi beserta statistik insidennya & koordinat spasial.
      */
-    public function getDesaBinaanList(?int $uptId = null): array
+    public function getDesaBinaanList(?int $uptId = null, ?string $tanggalMulai = null, ?string $tanggalSelesai = null): array
     {
-        $query = DesaBinaan::with(['upt', 'pimpasa', 'perangkatDesa'])
+        $dateFilter = function ($q) use ($tanggalMulai, $tanggalSelesai) {
+            if ($tanggalMulai) {
+                $q->whereDate('created_at', '>=', $tanggalMulai);
+            }
+            if ($tanggalSelesai) {
+                $q->whereDate('created_at', '<=', $tanggalSelesai);
+            }
+        };
+
+        $query = DesaBinaan::with(['upt', 'pimpasa', 'perangkatDesa', 'wilayah.parent.parent'])
             ->withCount([
-                'laporan as total_laporan',
-                'laporan as laporan_diverifikasi' => fn ($q) => $q->where('status', StatusLaporan::DIVERIFIKASI),
-                'laporan as laporan_selesai' => fn ($q) => $q->where('status', StatusLaporan::SELESAI),
-                'laporan as laporan_aduan' => fn ($q) => $q->whereIn('status', [StatusLaporan::DIAJUKAN, StatusLaporan::MINTA_PERBAIKAN]),
+                'laporan as total_laporan' => $dateFilter,
+                'laporan as laporan_diverifikasi' => fn ($q) => $q->tap($dateFilter)->where('status', StatusLaporan::DIVERIFIKASI),
+                'laporan as laporan_selesai' => fn ($q) => $q->tap($dateFilter)->where('status', StatusLaporan::SELESAI),
+                'laporan as laporan_aduan' => fn ($q) => $q->tap($dateFilter)->whereIn('status', [StatusLaporan::DIAJUKAN, StatusLaporan::MINTA_PERBAIKAN]),
             ]);
 
         if ($uptId) {
@@ -384,16 +417,31 @@ class PimpasaWorkflowService
                 $indeksKerawanan = 'rendah';
             }
 
-            $perangkatFirst = $desa->perangkatDesa->first();
+            $perangkatList = $desa->perangkatDesa;
+            $activePerangkat = $perangkatList->where('is_active', true)->first() ?? $perangkatList->first();
+
+            // Jika ada beberapa Perangkat Desa, gabungkan nama & kontak utama
+            $namaPerangkat = $perangkatList->count() > 1
+                ? $perangkatList->pluck('name')->implode(', ')
+                : ($activePerangkat?->name ?? 'Belum Di-assign');
+
+            // Ambil nomor kontak/telepon WhatsApp (fallback ke email atau null)
+            $kontakPerangkat = $activePerangkat?->kontak ?: ($activePerangkat?->email ?: null);
+
+            // Ambil data hierarki Wilayah Administratif dari DB
+            $wilDesa = $desa->wilayah;
+            $wilParent = $wilDesa?->parent;
+
+            $kabupatenNama = $wilParent?->nama ?? 'KABUPATEN BINAAN';
+            $kodeDesa = $wilDesa ? $wilDesa->kode_kemendagri : ('DESA-' . str_pad((string) $desa->id, 3, '0', STR_PAD_LEFT));
 
             return [
                 'id' => $desa->id,
                 'nama' => $desa->nama,
-                'kecamatan' => $desa->kecamatan ?? 'Kecamatan Binaan',
-                'kabupaten' => $desa->kabupaten ?? 'Kabupaten Binaan',
-                'kode_desa' => $desa->kode_desa ?? ('DESA-' . str_pad((string) $desa->id, 3, '0', STR_PAD_LEFT)),
-                'kepala_desa' => $perangkatFirst?->name ?? 'Perangkat Desa',
-                'kontak' => $perangkatFirst?->email ?? '0812-6000-xxxx',
+                'kabupaten' => $kabupatenNama,
+                'kode_desa' => $kodeDesa,
+                'kepala_desa' => $namaPerangkat,
+                'kontak' => $kontakPerangkat,
                 'lat' => $lat,
                 'lng' => $lng,
                 'status_terkini' => $statusTerkini,
@@ -458,12 +506,20 @@ class PimpasaWorkflowService
     /**
      * Ambil rekapitulasi kinerja & statistik eksekutif Satker UPT.
      */
-    public function getRekapitulasiSatker(?int $uptId = null): array
+    public function getRekapitulasiSatker(?int $uptId = null, ?string $tanggalMulai = null, ?string $tanggalSelesai = null): array
     {
         $baseQuery = Laporan::query();
 
         if ($uptId) {
             $baseQuery->whereHas('desa', fn ($q) => $q->where('upt_id', $uptId));
+        }
+
+        if ($tanggalMulai) {
+            $baseQuery->whereDate('created_at', '>=', $tanggalMulai);
+        }
+
+        if ($tanggalSelesai) {
+            $baseQuery->whereDate('created_at', '<=', $tanggalSelesai);
         }
 
         $total = (clone $baseQuery)->count();
@@ -484,7 +540,7 @@ class PimpasaWorkflowService
             'laporan_selesai' => $selesai,
             'laporan_proses' => $proses,
             'laporan_ditolak' => $ditolak,
-            'resolution_rate' => $total > 0 ? round(($selesai / $total) * 100, 1) : 100,
+            'resolution_rate' => $total > 0 ? round(($selesai / $total) * 100, 1) : 0,
             'avg_response_hours' => 24, // Rata-rata 24 jam
             'kategori_breakdown' => $kategoriBreakdown,
         ];

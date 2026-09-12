@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import AppLayout from '@/components/layout/AppLayout.vue';
 import { FileDown } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
@@ -11,8 +12,57 @@ const props = defineProps<{
     chartAnalytics: any;
 }>();
 
-const exportPdf = () => {
-    notify.info('Mengunduh Laporan PDF Eksekutif...', { description: 'Format Resmi Dinas Kanwil Kemenkumham Sumut.' });
+const chartAnalyticsRef = ref<any>(null);
+const isExporting = ref(false);
+
+const exportPdf = async () => {
+    if (isExporting.value) return;
+    try {
+        isExporting.value = true;
+        notify.info('Mengunduh Laporan PDF Eksekutif...', { description: 'Kanwil Ditjenim Sumatera Utara' });
+
+        let images = { trendImg: null, donutImg: null, barImg: null };
+        if (chartAnalyticsRef.value && typeof chartAnalyticsRef.value.getChartImages === 'function') {
+            images = await chartAnalyticsRef.value.getChartImages();
+        }
+
+        const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
+
+        const formData = new FormData();
+        formData.append('_token', csrfToken);
+        if (images.trendImg) formData.append('trendImg', images.trendImg);
+        if (images.donutImg) formData.append('donutImg', images.donutImg);
+        if (images.barImg) formData.append('barImg', images.barImg);
+
+        const response = await fetch('/kanwil/dashboard/export-pdf', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ringkasan-eksekutif-kanwil-${new Date().toISOString().slice(0, 10)}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error('Failed to export PDF:', error);
+        notify.error('Gagal mengunduh Laporan PDF');
+    } finally {
+        setTimeout(() => {
+            isExporting.value = false;
+        }, 1000);
+    }
 };
 </script>
 
@@ -30,9 +80,9 @@ const exportPdf = () => {
                 </div>
 
                 <div class="flex items-center gap-2.5 shrink-0">
-                    <Button @click="exportPdf" size="sm" class="h-9 px-4 rounded-md bg-primary hover:bg-[#04407D] text-primary-foreground text-xs font-semibold gap-2 shadow-xs">
+                    <Button :disabled="isExporting" @click="exportPdf" size="sm" class="h-9 px-4 rounded-md bg-primary hover:bg-[#04407D] text-primary-foreground text-xs font-semibold gap-2 shadow-xs">
                         <FileDown :size="15" />
-                        <span>Cetak Ringkasan Eksekutif</span>
+                        <span>{{ isExporting ? 'Memproses...' : 'Cetak Ringkasan Eksekutif' }}</span>
                     </Button>
                 </div>
             </div>
@@ -41,7 +91,7 @@ const exportPdf = () => {
             <KpiSummaryCards :kpi="kpiData" />
 
             <!-- Executive Visual Analytics ApexCharts (Area, Donut, Bar Chart) -->
-            <ExecutiveChartAnalytics v-if="chartAnalytics" :data="chartAnalytics" />
+            <ExecutiveChartAnalytics ref="chartAnalyticsRef" v-if="chartAnalytics" :data="chartAnalytics" />
 
         </div>
     </AppLayout>

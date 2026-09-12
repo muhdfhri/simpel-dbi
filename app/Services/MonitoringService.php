@@ -16,17 +16,20 @@ class MonitoringService
         $totalDesa = DesaBinaan::count();
         $totalLaporan = Laporan::count();
         $laporanSelesai = Laporan::where('status', 'selesai')->count();
-        $laporanProses = Laporan::whereIn('status', ['diajukan', 'diverifikasi', 'ditindaklanjuti'])->count();
+        $laporanProses = Laporan::whereIn('status', ['diajukan', 'minta_perbaikan', 'diverifikasi', 'ditindaklanjuti'])->count();
 
-        $slaResolutionRate = $totalLaporan > 0 ? round(($laporanSelesai / $totalLaporan) * 100, 1) : 100;
+        $slaResolutionRate = $totalLaporan > 0 ? round(($laporanSelesai / $totalLaporan) * 100, 1) : 0;
 
         // Count SLA Breached Laporan (> 24 jam tanpa status selesai atau red_flag = true)
-        $slaBreachedCount = Laporan::whereIn('status', ['diajukan', 'diverifikasi', 'ditindaklanjuti'])
+        $slaBreachedCount = Laporan::whereIn('status', ['diajukan', 'minta_perbaikan', 'diverifikasi', 'ditindaklanjuti'])
             ->where(function ($q) {
                 $q->where('created_at', '<', now()->subHours(24))
                   ->orWhere('red_flag', true);
             })
             ->count();
+
+        $totalKegiatan = \App\Models\KegiatanPembinaan::count();
+        $totalPeserta = \App\Models\KegiatanPembinaan::sum('jumlah_peserta');
 
         return [
             'total_desa' => $totalDesa,
@@ -35,37 +38,64 @@ class MonitoringService
             'laporan_selesai' => $laporanSelesai,
             'resolution_rate' => $slaResolutionRate,
             'sla_breached_count' => $slaBreachedCount,
+            'total_kegiatan_pembinaan' => $totalKegiatan,
+            'total_peserta_pembinaan' => $totalPeserta,
         ];
     }
 
     /**
      * Dapatkan UPT Compliance & Performance Scorecard Data (6 Satker UPT se-Sumut)
      */
-    public function getUptScorecards(): array
+    public function getUptScorecards(?string $tanggalMulai = null, ?string $tanggalSelesai = null): array
     {
+        $dateFilter = function ($q) use ($tanggalMulai, $tanggalSelesai) {
+            if ($tanggalMulai) {
+                $q->whereDate('created_at', '>=', $tanggalMulai);
+            }
+            if ($tanggalSelesai) {
+                $q->whereDate('created_at', '<=', $tanggalSelesai);
+            }
+        };
+
         return Upt::withCount(['desaBinaanList', 'users'])
             ->get()
-            ->map(function ($upt) {
-                // Gunakan kolom desa_id (BUKAN desa_binaan_id)
+            ->map(function ($upt) use ($dateFilter) {
                 $desaIds = DesaBinaan::where('upt_id', $upt->id)->pluck('id');
-                $totalUptLaporan = Laporan::whereIn('desa_id', $desaIds)->count();
-                $selesaiUptLaporan = Laporan::whereIn('desa_id', $desaIds)->where('status', 'selesai')->count();
+                $totalUptLaporan = Laporan::whereIn('desa_id', $desaIds)->tap($dateFilter)->count();
+                $selesaiUptLaporan = Laporan::whereIn('desa_id', $desaIds)->where('status', 'selesai')->tap($dateFilter)->count();
                 
                 $breachedCount = Laporan::whereIn('desa_id', $desaIds)
-                    ->whereIn('status', ['diajukan', 'diverifikasi', 'ditindaklanjuti'])
-                    ->where('created_at', '<', now()->subHours(24))
+                    ->whereIn('status', ['diajukan', 'minta_perbaikan', 'diverifikasi', 'ditindaklanjuti'])
+                    ->where(function ($q) {
+                        $q->where('created_at', '<', now()->subHours(24))
+                          ->orWhere('red_flag', true);
+                    })
+                    ->tap($dateFilter)
                     ->count();
 
-                // Logic Presisi: Jika belum ada tiket laporan sama sekali
+                // Hitung Rata-rata jam penyelesaian (SLA) dari created_at s/d resolved_at
+                $selesaiLaporans = Laporan::whereIn('desa_id', $desaIds)
+                    ->where('status', 'selesai')
+                    ->whereNotNull('resolved_at')
+                    ->tap($dateFilter)
+                    ->get();
+
+                if ($selesaiLaporans->count() > 0) {
+                    $totalHours = $selesaiLaporans->sum(function ($lap) {
+                        return abs($lap->created_at->diffInHours($lap->resolved_at));
+                    });
+                    $avgSlaHours = (int) round($totalHours / $selesaiLaporans->count());
+                } else {
+                    $avgSlaHours = 0;
+                }
+
+                // Logic Presisi Status Kepatuhan
                 if ($totalUptLaporan === 0) {
                     $rate = 0;
-                    $avgSlaHours = 0;
                     $statusKepatuhan = 'SANGAT BAIK';
                 } else {
                     $rate = round(($selesaiUptLaporan / $totalUptLaporan) * 100, 1);
-                    $avgSlaHours = rand(3, 18);
 
-                    // Status Kepatuhan Badge
                     if ($breachedCount > 2 || $rate < 70) {
                         $statusKepatuhan = 'PERLU EVALUASI';
                     } elseif ($breachedCount > 0 || $rate < 85) {
@@ -118,11 +148,19 @@ class MonitoringService
     /**
      * Dapatkan Live SLA Incident Control Center Data
      */
-    public function getSlaIncidents(): array
+    public function getSlaIncidents(?string $tanggalMulai = null, ?string $tanggalSelesai = null): array
     {
-        return Laporan::with(['desa.upt', 'kategoriRef'])
-            ->whereIn('status', ['diajukan', 'diverifikasi', 'ditindaklanjuti'])
-            ->orderBy('created_at', 'asc')
+        $query = Laporan::with(['desa.upt', 'kategoriRef'])
+            ->whereIn('status', ['diajukan', 'minta_perbaikan', 'diverifikasi', 'ditindaklanjuti']);
+
+        if ($tanggalMulai) {
+            $query->whereDate('created_at', '>=', $tanggalMulai);
+        }
+        if ($tanggalSelesai) {
+            $query->whereDate('created_at', '<=', $tanggalSelesai);
+        }
+
+        return $query->orderBy('created_at', 'asc')
             ->limit(30)
             ->get()
             ->map(function ($lap) {
@@ -187,17 +225,98 @@ class MonitoringService
     }
 
     /**
-     * Dapatkan Data Analytics Chart Eksekutif untuk ApexCharts
+     * Dapatkan Data Analytics Chart Eksekutif untuk ApexCharts (100% Real-Time DB Query)
      */
     public function getChartAnalyticsData(): array
     {
-        // 1. Monthly Trend Data (12 Bulan)
-        $months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-        
-        // 2. Sebaran Status Desa Binaan
+        // 1. Dynamic Trend Data by Database Query (1 Minggu, 1 Bulan, 1 Tahun)
+        $now = now();
+
+        // 1.A: 1 Minggu (7 Hari Terakhir)
+        $weekCategories = [];
+        $weekMasuk = [];
+        $weekSelesai = [];
+        $weekBreached = [];
+
+        for ($i = 6; $i >= 0; $i--) {
+            $date = $now->copy()->subDays($i);
+            $dayName = $date->locale('id')->isoFormat('dddd');
+            $weekCategories[] = ucfirst($dayName);
+
+            $masuk = Laporan::whereDate('created_at', $date->toDateString())->count();
+            $selesai = Laporan::whereDate('created_at', $date->toDateString())->where('status', 'selesai')->count();
+            $breached = Laporan::whereDate('created_at', $date->toDateString())
+                ->where(function ($q) {
+                    $q->where('created_at', '<', now()->subHours(24))->where('status', '!=', 'selesai')->orWhere('red_flag', true);
+                })->count();
+
+            $weekMasuk[] = $masuk;
+            $weekSelesai[] = $selesai;
+            $weekBreached[] = $breached;
+        }
+
+        // 1.B: 1 Bulan (4 Minggu Terakhir)
+        $monthCategories = ['Mgg 1', 'Mgg 2', 'Mgg 3', 'Mgg 4'];
+        $monthMasuk = [];
+        $monthSelesai = [];
+        $monthBreached = [];
+
+        for ($w = 3; $w >= 0; $w--) {
+            $startWeek = $now->copy()->subWeeks($w)->startOfWeek();
+            $endWeek = $now->copy()->subWeeks($w)->endOfWeek();
+
+            $masuk = Laporan::whereBetween('created_at', [$startWeek, $endWeek])->count();
+            $selesai = Laporan::whereBetween('created_at', [$startWeek, $endWeek])->where('status', 'selesai')->count();
+            $breached = Laporan::whereBetween('created_at', [$startWeek, $endWeek])
+                ->where(function ($q) {
+                    $q->where('created_at', '<', now()->subHours(24))->where('status', '!=', 'selesai')->orWhere('red_flag', true);
+                })->count();
+
+            $monthMasuk[] = $masuk;
+            $monthSelesai[] = $selesai;
+            $monthBreached[] = $breached;
+        }
+
+        // 1.C: 1 Tahun (12 Bulan dalam Tahun Ini)
+        $yearCategories = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+        $yearMasuk = [];
+        $yearSelesai = [];
+        $yearBreached = [];
+
+        $currentYear = $now->year;
+        for ($m = 1; $m <= 12; $m++) {
+            $masuk = Laporan::whereYear('created_at', $currentYear)->whereMonth('created_at', $m)->count();
+            $selesai = Laporan::whereYear('created_at', $currentYear)->whereMonth('created_at', $m)->where('status', 'selesai')->count();
+            $breached = Laporan::whereYear('created_at', $currentYear)->whereMonth('created_at', $m)
+                ->where(function ($q) {
+                    $q->where('created_at', '<', now()->subHours(24))->where('status', '!=', 'selesai')->orWhere('red_flag', true);
+                })->count();
+
+            $yearMasuk[] = $masuk;
+            $yearSelesai[] = $selesai;
+            $yearBreached[] = $breached;
+        }
+
+        // 2. Dynamic Sebaran Status Desa Binaan (Real-Time DB Query)
+        $allDesaIds = DesaBinaan::pluck('id');
+        $desaAduanCount = Laporan::whereIn('status', ['diajukan', 'minta_perbaikan'])
+            ->pluck('desa_id')
+            ->unique()
+            ->count();
+
+        $desaPembinaanCount = \App\Models\KegiatanPembinaan::pluck('desa_id')
+            ->merge(Laporan::whereIn('status', ['diverifikasi', 'ditindaklanjuti', 'selesai'])->pluck('desa_id'))
+            ->unique()
+            ->filter(fn($id) => !Laporan::where('desa_id', $id)->whereIn('status', ['diajukan', 'minta_perbaikan'])->exists())
+            ->count();
+
+        $totalDesaCount = DesaBinaan::count();
+        $desaAmanCount = max(0, $totalDesaCount - ($desaAduanCount + $desaPembinaanCount));
+
         $desaSebaran = [
+            'total_desa' => $totalDesaCount,
             'labels' => ['Desa Aman / Aktif', 'Perlu Pembinaan', 'Ada Aduan Aktif'],
-            'series' => [142, 21, 8],
+            'series' => [$desaAmanCount, $desaPembinaanCount, $desaAduanCount],
             'colors' => ['#16A34A', '#E8C070', '#DC2626'],
         ];
 
@@ -217,72 +336,36 @@ class MonitoringService
         return [
             'trendData' => [
                 '1_minggu' => [
-                    'categories' => ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'],
+                    'categories' => $weekCategories,
                     'series' => [
-                        [
-                            'name' => 'Laporan Masuk',
-                            'data' => [14, 22, 16, 28, 21, 15, 11],
-                        ],
-                        [
-                            'name' => 'Selesai Tepat SLA',
-                            'data' => [12, 20, 15, 25, 19, 14, 10],
-                        ],
-                        [
-                            'name' => 'Red-Flag SLA Breached',
-                            'data' => [2, 2, 1, 3, 2, 1, 1],
-                        ],
+                        ['name' => 'Laporan Masuk', 'data' => $weekMasuk],
+                        ['name' => 'Selesai Tepat SLA', 'data' => $weekSelesai],
+                        ['name' => 'Red-Flag SLA Breached', 'data' => $weekBreached],
                     ],
                 ],
                 '1_bulan' => [
-                    'categories' => ['01 Mgg', '04 Mgg', '08 Mgg', '12 Mgg', '16 Mgg', '20 Mgg', '24 Mgg', '28 Mgg'],
+                    'categories' => $monthCategories,
                     'series' => [
-                        [
-                            'name' => 'Laporan Masuk',
-                            'data' => [38, 54, 42, 65, 48, 72, 55, 68],
-                        ],
-                        [
-                            'name' => 'Selesai Tepat SLA',
-                            'data' => [34, 49, 38, 60, 44, 66, 50, 62],
-                        ],
-                        [
-                            'name' => 'Red-Flag SLA Breached',
-                            'data' => [4, 5, 4, 5, 4, 6, 5, 6],
-                        ],
+                        ['name' => 'Laporan Masuk', 'data' => $monthMasuk],
+                        ['name' => 'Selesai Tepat SLA', 'data' => $monthSelesai],
+                        ['name' => 'Red-Flag SLA Breached', 'data' => $monthBreached],
                     ],
                 ],
                 '1_tahun' => [
-                    'categories' => $months,
+                    'categories' => $yearCategories,
                     'series' => [
-                        [
-                            'name' => 'Laporan Masuk',
-                            'data' => [120, 142, 125, 110, 138, 175, 152, 178, 145, 168, 150, 185],
-                        ],
-                        [
-                            'name' => 'Selesai Tepat SLA',
-                            'data' => [112, 132, 116, 102, 128, 162, 141, 165, 135, 156, 139, 172],
-                        ],
-                        [
-                            'name' => 'Red-Flag SLA Breached',
-                            'data' => [8, 10, 9, 8, 10, 13, 11, 13, 10, 12, 11, 13],
-                        ],
+                        ['name' => 'Laporan Masuk', 'data' => $yearMasuk],
+                        ['name' => 'Selesai Tepat SLA', 'data' => $yearSelesai],
+                        ['name' => 'Red-Flag SLA Breached', 'data' => $yearBreached],
                     ],
                 ],
             ],
             'monthlyTrend' => [
-                'categories' => $months,
+                'categories' => $yearCategories,
                 'series' => [
-                    [
-                        'name' => 'Laporan Masuk',
-                        'data' => [120, 142, 125, 110, 138, 175, 152, 178, 145, 168, 150, 185],
-                    ],
-                    [
-                        'name' => 'Selesai Tepat SLA',
-                        'data' => [112, 132, 116, 102, 128, 162, 141, 165, 135, 156, 139, 172],
-                    ],
-                    [
-                        'name' => 'Red-Flag SLA Breached',
-                        'data' => [8, 10, 9, 8, 10, 13, 11, 13, 10, 12, 11, 13],
-                    ],
+                    ['name' => 'Laporan Masuk', 'data' => $yearMasuk],
+                    ['name' => 'Selesai Tepat SLA', 'data' => $yearSelesai],
+                    ['name' => 'Red-Flag SLA Breached', 'data' => $yearBreached],
                 ],
             ],
             'desaStatusDistribution' => $desaSebaran,
@@ -297,10 +380,19 @@ class MonitoringService
     /**
      * Dapatkan Data Kegiatan Pembinaan Desa Lintas UPT untuk Kanwil Executive Monitoring
      */
-    public function getKegiatanPembinaanData(): array
+    public function getKegiatanPembinaanData(?string $tanggalMulai = null, ?string $tanggalSelesai = null): array
     {
-        return \App\Models\KegiatanPembinaan::with(['desa.upt', 'pimpasa', 'lampiranList'])
-            ->orderBy('tanggal', 'desc')
+        $query = \App\Models\KegiatanPembinaan::with(['desa.upt', 'pimpasa', 'lampiranList']);
+
+        if ($tanggalMulai) {
+            $query->whereDate('tanggal', '>=', $tanggalMulai);
+        }
+
+        if ($tanggalSelesai) {
+            $query->whereDate('tanggal', '<=', $tanggalSelesai);
+        }
+
+        return $query->orderBy('tanggal', 'desc')
             ->get()
             ->map(function ($keg) {
                 return [
@@ -350,9 +442,12 @@ class MonitoringService
         }
 
         arsort($uptCounts);
-        $topUptNama = !empty($uptCounts) ? array_key_first($uptCounts) : 'Kanim Kelas I TPI Medan';
-        // Shorten UPT name for clean card badge
-        $topUptShort = preg_replace('/Kantor Imigrasi Kelas (I|II|III|I Khusus)( TPI| Non TPI)?\s*/i', 'Kanim ', $topUptNama);
+        if (! empty($uptCounts)) {
+            $topUptNama = array_key_first($uptCounts);
+            $topUptShort = preg_replace('/Kantor Imigrasi Kelas (I|II|III|I Khusus)( TPI| Non TPI)?\s*/i', 'Kanim ', $topUptNama);
+        } else {
+            $topUptShort = '-';
+        }
 
         return [
             'total_kegiatan' => $totalKegiatan,

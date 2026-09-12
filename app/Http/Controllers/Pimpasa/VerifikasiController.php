@@ -26,7 +26,7 @@ class VerifikasiController extends Controller
      */
     public function index(Request $request): Response
     {
-        $filters = $request->only(['search', 'status', 'kategori', 'desa_id']);
+        $filters = $request->only(['search', 'status', 'kategori', 'desa_id', 'tanggal_mulai', 'tanggal_selesai']);
         $user = $request->user();
         $uptId = $user->upt_id;
 
@@ -89,7 +89,7 @@ class VerifikasiController extends Controller
     public function exportExcel(Request $request)
     {
         $user = $request->user();
-        $filters = $request->only(['search', 'status', 'kategori', 'desa_id']);
+        $filters = $request->only(['search', 'status', 'kategori', 'desa_id', 'tanggal_mulai', 'tanggal_selesai']);
 
         $query = Laporan::with(['desa', 'kategoriRef', 'lampiranList', 'verifikasi']);
 
@@ -107,6 +107,13 @@ class VerifikasiController extends Controller
 
         if (! empty($filters['desa_id']) && $filters['desa_id'] !== 'all') {
             $query->where('desa_id', $filters['desa_id']);
+        }
+
+        if (! empty($filters['tanggal_mulai'])) {
+            $query->whereDate('created_at', '>=', $filters['tanggal_mulai']);
+        }
+        if (! empty($filters['tanggal_selesai'])) {
+            $query->whereDate('created_at', '<=', $filters['tanggal_selesai']);
         }
 
         if (! empty($filters['search'])) {
@@ -134,7 +141,7 @@ class VerifikasiController extends Controller
     public function exportPdf(Request $request)
     {
         $user = $request->user();
-        $filters = $request->only(['search', 'status', 'kategori', 'desa_id']);
+        $filters = $request->only(['search', 'status', 'kategori', 'desa_id', 'tanggal_mulai', 'tanggal_selesai']);
 
         $query = Laporan::with(['desa', 'kategoriRef', 'lampiranList', 'verifikasi']);
 
@@ -154,6 +161,13 @@ class VerifikasiController extends Controller
             $query->where('desa_id', $filters['desa_id']);
         }
 
+        if (! empty($filters['tanggal_mulai'])) {
+            $query->whereDate('created_at', '>=', $filters['tanggal_mulai']);
+        }
+        if (! empty($filters['tanggal_selesai'])) {
+            $query->whereDate('created_at', '<=', $filters['tanggal_selesai']);
+        }
+
         if (! empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
@@ -167,10 +181,18 @@ class VerifikasiController extends Controller
         $pimpasaNama = $user->name ?? 'Petugas PIMPASA';
         $uptNama = $user->upt?->nama_upt ?? 'Kanwil / UPT Imigrasi';
 
+        $periodeText = 'Semua Periode';
+        if (!empty($filters['tanggal_mulai']) || !empty($filters['tanggal_selesai'])) {
+            $f = !empty($filters['tanggal_mulai']) ? date('d M Y', strtotime($filters['tanggal_mulai'])) : 'Awal';
+            $t = !empty($filters['tanggal_selesai']) ? date('d M Y', strtotime($filters['tanggal_selesai'])) : 'Sekarang';
+            $periodeText = "{$f} s.d. {$t}";
+        }
+
         $pdf = Pdf::loadView('pdf.pimpasa-verifikasi', [
             'laporanList' => $laporanList,
             'pimpasaNama' => $pimpasaNama,
             'uptNama' => $uptNama,
+            'periodeText' => $periodeText,
             'tanggalCetak' => date('d F Y, H:i'),
         ])->setPaper('a4', 'landscape');
 

@@ -156,8 +156,12 @@
             <tr>
                 <td><strong>Satker UPT</strong></td>
                 <td>: {{ $uptNama }}</td>
+                <td><strong>Periode Filter</strong></td>
+                <td>: {{ $periodeText ?? 'Semua Periode' }}</td>
+            </tr>
+            <tr>
                 <td><strong>Total Laporan</strong></td>
-                <td>: {{ count($laporanList) }} Tiket Terdaftar</td>
+                <td colspan="3">: {{ count($laporanList) }} Tiket Terdaftar</td>
             </tr>
         </table>
     </div>

@@ -109,27 +109,34 @@ const getStatusLabel = (statusStr: string) => {
 };
 
 const submitDecision = (dec: 'diverifikasi' | 'minta_perbaikan' | 'ditolak') => {
+    if ((dec === 'minta_perbaikan' || dec === 'ditolak') && (!form.catatan || !form.catatan.trim())) {
+        notify.error('Catatan Wajib Diisi', {
+            description: `Silakan isi Catatan / Instruksi PIMPASA terlebih dahulu sebelum memilih ${dec === 'minta_perbaikan' ? 'Minta Perbaikan' : 'Tolak Laporan'}.`
+        });
+        return;
+    }
+
     form.keputusan = dec;
     const prevStatus = props.laporan.status;
 
     // 1. Optimistic UI Update: Langsung ubah status badge lokal pada milidetik ke-0
     props.laporan.status = dec;
 
-    // 2. Instant Touch Response Toast
-    const msg = dec === 'diverifikasi'
-        ? 'Laporan berhasil diverifikasi!'
-        : (dec === 'minta_perbaikan' ? 'Permintaan perbaikan telah dikirim ke Perangkat Desa.' : 'Laporan telah ditolak.');
-
-    if (dec === 'diverifikasi') notify.success('Verifikasi Berhasil', { description: msg });
-    else if (dec === 'minta_perbaikan') notify.warning('Minta Perbaikan Terkirim', { description: msg });
-    else notify.error('Laporan Ditolak', { description: msg });
-
-    // 3. Background HTTP Request
+    // 2. Background HTTP Request
     form.post(`/pimpasa/verifikasi/${props.laporan.id}`, {
+        onSuccess: () => {
+            const msg = dec === 'diverifikasi'
+                ? 'Laporan berhasil diverifikasi!'
+                : (dec === 'minta_perbaikan' ? 'Permintaan perbaikan telah dikirim ke Perangkat Desa.' : 'Laporan telah ditolak.');
+
+            if (dec === 'diverifikasi') notify.success('Verifikasi Berhasil', { description: msg });
+            else if (dec === 'minta_perbaikan') notify.warning('Minta Perbaikan Terkirim', { description: msg });
+            else notify.error('Laporan Ditolak', { description: msg });
+        },
         onError: () => {
             // Rollback jika terjadi kesalahan server
             props.laporan.status = prevStatus;
-            notify.error('Gagal Memproses Verifikasi', { description: 'Terjadi kesalahan sistem/jaringan.' });
+            notify.error('Gagal Memproses Verifikasi', { description: 'Mohon periksa kembali kelengkapan catatan / form.' });
         }
     });
 };

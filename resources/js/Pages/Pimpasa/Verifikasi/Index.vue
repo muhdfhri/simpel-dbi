@@ -18,7 +18,10 @@ import {
     ArrowUp,
     ArrowDown,
     ExternalLink,
-    FileCheck2
+    FileCheck2,
+    Filter,
+    Tag,
+    MapPin
 } from 'lucide-vue-next';
 
 import { Button } from '@/components/ui/button';
@@ -68,6 +71,8 @@ const props = defineProps<{
         status?: string;
         kategori?: string;
         desa_id?: string;
+        tanggal_mulai?: string;
+        tanggal_selesai?: string;
     };
     statusCounts?: {
         all?: number;
@@ -87,6 +92,8 @@ const searchInput = ref(props.filters.search || '');
 const selectedStatus = ref(props.filters.status || 'all');
 const selectedKategori = ref(props.filters.kategori || 'all');
 const selectedDesa = ref(props.filters.desa_id || 'all');
+const tanggalMulai = ref(props.filters.tanggal_mulai || '');
+const tanggalSelesai = ref(props.filters.tanggal_selesai || '');
 
 const filterByStatus = (statusValue: string) => {
     selectedStatus.value = statusValue;
@@ -165,12 +172,15 @@ const toggleLampiranPopover = (id: number) => {
 };
 
 const applyFilter = () => {
-    router.get('/pimpasa/verifikasi', {
-        search: searchInput.value,
-        status: selectedStatus.value === 'all' ? '' : selectedStatus.value,
-        kategori: selectedKategori.value === 'all' ? '' : selectedKategori.value,
-        desa_id: selectedDesa.value === 'all' ? '' : selectedDesa.value,
-    }, { preserveState: true, replace: true });
+    const params: Record<string, string> = {};
+    if (searchInput.value) params.search = searchInput.value;
+    if (selectedStatus.value && selectedStatus.value !== 'all') params.status = selectedStatus.value;
+    if (selectedKategori.value && selectedKategori.value !== 'all') params.kategori = selectedKategori.value;
+    if (selectedDesa.value && selectedDesa.value !== 'all') params.desa_id = selectedDesa.value;
+    if (tanggalMulai.value) params.tanggal_mulai = tanggalMulai.value;
+    if (tanggalSelesai.value) params.tanggal_selesai = tanggalSelesai.value;
+
+    router.get('/pimpasa/verifikasi', params, { preserveState: true, replace: true });
 };
 
 const resetFilter = () => {
@@ -178,24 +188,30 @@ const resetFilter = () => {
     selectedStatus.value = 'all';
     selectedKategori.value = 'all';
     selectedDesa.value = 'all';
-    applyFilter();
+    tanggalMulai.value = '';
+    tanggalSelesai.value = '';
+
+    router.get('/pimpasa/verifikasi', {}, { preserveState: false, replace: true });
 };
 
-const exportExcel = () => {
+const buildQueryParams = () => {
     const params = new URLSearchParams();
     if (searchInput.value) params.append('search', searchInput.value);
     if (selectedStatus.value && selectedStatus.value !== 'all') params.append('status', selectedStatus.value);
     if (selectedKategori.value && selectedKategori.value !== 'all') params.append('kategori', selectedKategori.value);
     if (selectedDesa.value && selectedDesa.value !== 'all') params.append('desa_id', selectedDesa.value);
+    if (tanggalMulai.value) params.append('tanggal_mulai', tanggalMulai.value);
+    if (tanggalSelesai.value) params.append('tanggal_selesai', tanggalSelesai.value);
+    return params;
+};
+
+const exportExcel = () => {
+    const params = buildQueryParams();
     window.location.href = `/pimpasa/verifikasi/export-excel?${params.toString()}`;
 };
 
 const exportPdf = () => {
-    const params = new URLSearchParams();
-    if (searchInput.value) params.append('search', searchInput.value);
-    if (selectedStatus.value && selectedStatus.value !== 'all') params.append('status', selectedStatus.value);
-    if (selectedKategori.value && selectedKategori.value !== 'all') params.append('kategori', selectedKategori.value);
-    if (selectedDesa.value && selectedDesa.value !== 'all') params.append('desa_id', selectedDesa.value);
+    const params = buildQueryParams();
     window.open(`/pimpasa/verifikasi/export-pdf?${params.toString()}`, '_blank');
 };
 
@@ -358,77 +374,119 @@ const diverifikasiSelesai = computed(() => props.laporan.data.filter(i => ['dive
                     </div>
                 </div>
 
-                <!-- Toolbar Filter -->
-                <div class="p-4 bg-slate-50/50 border-b border-slate-100 grid grid-cols-1 sm:grid-cols-12 gap-3">
+                <!-- Toolbar Filter (Clean Structured 2-Tier Split Layout) -->
+                <div class="p-4 bg-slate-50/60 border-b border-slate-100 space-y-3">
                     
-                    <div class="sm:col-span-6 lg:col-span-3 relative">
-                        <Search :size="15" class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <Input
-                            type="text"
-                            v-model="searchInput"
-                            @keyup.enter="applyFilter"
-                            placeholder="Cari tiket, judul, desa..."
-                            class="pl-9 pr-24 text-xs rounded-md bg-white border-slate-200/90 h-9 shadow-2xs"
-                        />
-                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-medium pointer-events-none select-none hidden sm:flex items-center gap-1">
-                            <kbd class="bg-slate-100 border border-slate-300 text-slate-500 text-[9px] font-sans font-semibold px-1.5 py-0.5 rounded">Enter</kbd>
-                        </span>
-                    </div>
+                    <!-- Row 1: Search Bar Utama & Reset Button -->
+                    <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+                        <div class="relative w-full flex-1">
+                            <Search :size="15" class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                            <Input
+                                type="text"
+                                v-model="searchInput"
+                                @keyup.enter="applyFilter"
+                                placeholder="Cari kode tiket, judul laporan, atau nama desa binaan..."
+                                class="pl-9 pr-24 text-xs rounded-md bg-white border-slate-200/90 h-9.5 shadow-2xs w-full focus:ring-1 focus:ring-slate-400"
+                            />
+                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-medium pointer-events-none select-none hidden sm:flex items-center gap-1">
+                                <kbd class="bg-slate-100 border border-slate-300 text-slate-500 text-[9px] font-sans font-semibold px-1.5 py-0.5 rounded">Enter</kbd>
+                            </span>
+                        </div>
 
-                    <!-- Filter Status Siklus -->
-                    <div class="sm:col-span-6 lg:col-span-2">
-                        <Select :model-value="selectedStatus" @update:model-value="onStatusChange">
-                            <SelectTrigger class="w-full bg-white border-slate-200/90 rounded-md text-xs font-semibold text-slate-800 shadow-2xs h-9">
-                                <SelectValue placeholder="Semua Status" />
-                            </SelectTrigger>
-                            <SelectContent class="rounded-lg shadow-xl border-slate-200 bg-white">
-                                <SelectItem value="all" class="text-xs font-semibold text-slate-900">Semua Status ({{ statusCounts?.all ?? props.laporan.total }})</SelectItem>
-                                <SelectItem value="diajukan" class="text-xs font-medium">Perlu Verifikasi ({{ statusCounts?.diajukan ?? 0 }})</SelectItem>
-                                <SelectItem value="minta_perbaikan" class="text-xs text-amber-800 font-bold">Minta Perbaikan ({{ statusCounts?.minta_perbaikan ?? 0 }})</SelectItem>
-                                <SelectItem value="diverifikasi" class="text-xs font-medium">Diverifikasi ({{ statusCounts?.diverifikasi ?? 0 }})</SelectItem>
-                                <SelectItem value="ditindaklanjuti" class="text-xs font-medium">Ditindaklanjuti ({{ statusCounts?.ditindaklanjuti ?? 0 }})</SelectItem>
-                                <SelectItem value="selesai" class="text-xs text-emerald-700 font-semibold">Selesai ({{ statusCounts?.selesai ?? 0 }})</SelectItem>
-                                <SelectItem value="ditolak" class="text-xs text-red-700 font-semibold">Ditolak ({{ statusCounts?.ditolak ?? 0 }})</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    <!-- Filter Kategori Laporan (Combobox Searchable) -->
-                    <div class="sm:col-span-6 lg:col-span-3">
-                        <Combobox
-                            :options="kategoriComboboxOptions"
-                            :model-value="selectedKategori"
-                            @update:model-value="onKategoriChange"
-                            placeholder="Pilih Kategori..."
-                            search-placeholder="Cari kategori..."
-                            class="w-full h-9 bg-white border-slate-200/90 text-xs font-semibold text-slate-800 shadow-2xs"
-                        />
-                    </div>
-
-                    <!-- Filter Desa Binaan (Combobox Searchable) -->
-                    <div class="sm:col-span-6 lg:col-span-3">
-                        <Combobox
-                            :options="desaComboboxOptions"
-                            :model-value="selectedDesa"
-                            @update:model-value="onDesaChange"
-                            placeholder="Pilih Desa Binaan..."
-                            search-placeholder="Cari desa binaan..."
-                            class="w-full h-9 bg-white border-slate-200/90 text-xs font-semibold text-slate-800 shadow-2xs"
-                        />
-                    </div>
-
-                    <!-- Reset Filter Button -->
-                    <div class="sm:col-span-12 lg:col-span-1 flex items-center">
                         <button
                             type="button"
                             @click="resetFilter"
-                            class="w-full h-9 px-2.5 bg-white border border-slate-200/90 rounded-md text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                            class="w-full sm:w-auto h-9.5 px-4 bg-white border border-slate-200/90 rounded-md text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer shrink-0"
+                            title="Reset Filter"
                         >
                             <RotateCcw :size="13" class="text-slate-400 shrink-0" />
-                            <span>Reset</span>
+                            <span>Reset Filter</span>
                         </button>
                     </div>
 
+                    <!-- Row 2: 5 Filter Columns with Clear Labels (Dari Tanggal, Sampai Tanggal, Status, Kategori, Desa Binaan) -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                        
+                        <!-- Col 1: Dari Tanggal -->
+                        <div class="space-y-1">
+                            <label class="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                                <Calendar :size="12" class="text-slate-400 shrink-0" /> Dari Tanggal
+                            </label>
+                            <Input
+                                type="date"
+                                v-model="tanggalMulai"
+                                @change="applyFilter"
+                                class="text-xs bg-white border-slate-200/90 h-9 rounded-md shadow-2xs w-full px-3 text-slate-800 font-semibold cursor-pointer"
+                                title="Dari Tanggal"
+                            />
+                        </div>
+
+                        <!-- Col 2: Sampai Tanggal -->
+                        <div class="space-y-1">
+                            <label class="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                                <Calendar :size="12" class="text-slate-400 shrink-0" /> Sampai Tanggal
+                            </label>
+                            <Input
+                                type="date"
+                                v-model="tanggalSelesai"
+                                @change="applyFilter"
+                                class="text-xs bg-white border-slate-200/90 h-9 rounded-md shadow-2xs w-full px-3 text-slate-800 font-semibold cursor-pointer"
+                                title="Sampai Tanggal"
+                            />
+                        </div>
+
+                        <!-- Col 3: Status Siklus Filter -->
+                        <div class="space-y-1">
+                            <label class="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                                <Filter :size="12" class="text-slate-400 shrink-0" /> Status Siklus
+                            </label>
+                            <Select :model-value="selectedStatus" @update:model-value="onStatusChange">
+                                <SelectTrigger class="w-full bg-white border-slate-200/90 rounded-md text-xs font-semibold text-slate-800 shadow-2xs h-9">
+                                    <SelectValue placeholder="Semua Status Siklus" />
+                                </SelectTrigger>
+                                <SelectContent class="rounded-lg shadow-xl border-slate-200 bg-white">
+                                    <SelectItem value="all" class="text-xs font-semibold text-slate-900">Semua Status ({{ statusCounts?.all ?? props.laporan.total }})</SelectItem>
+                                    <SelectItem value="diajukan" class="text-xs font-medium">Perlu Verifikasi ({{ statusCounts?.diajukan ?? 0 }})</SelectItem>
+                                    <SelectItem value="minta_perbaikan" class="text-xs text-amber-800 font-bold">Minta Perbaikan ({{ statusCounts?.minta_perbaikan ?? 0 }})</SelectItem>
+                                    <SelectItem value="diverifikasi" class="text-xs font-medium">Diverifikasi ({{ statusCounts?.diverifikasi ?? 0 }})</SelectItem>
+                                    <SelectItem value="ditindaklanjuti" class="text-xs font-medium">Ditindaklanjuti ({{ statusCounts?.ditindaklanjuti ?? 0 }})</SelectItem>
+                                    <SelectItem value="selesai" class="text-xs text-emerald-700 font-semibold">Selesai ({{ statusCounts?.selesai ?? 0 }})</SelectItem>
+                                    <SelectItem value="ditolak" class="text-xs text-red-700 font-semibold">Ditolak ({{ statusCounts?.ditolak ?? 0 }})</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <!-- Col 4: Kategori Laporan Filter -->
+                        <div class="space-y-1">
+                            <label class="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                                <Tag :size="12" class="text-slate-400 shrink-0" /> Kategori Laporan
+                            </label>
+                            <Combobox
+                                :options="kategoriComboboxOptions"
+                                :model-value="selectedKategori"
+                                @update:model-value="onKategoriChange"
+                                placeholder="Semua Kategori Laporan"
+                                search-placeholder="Cari kategori..."
+                                class="w-full h-9 bg-white border-slate-200/90 text-xs font-semibold text-slate-800 shadow-2xs"
+                            />
+                        </div>
+
+                        <!-- Col 5: Desa Binaan Filter -->
+                        <div class="space-y-1">
+                            <label class="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                                <MapPin :size="12" class="text-slate-400 shrink-0" /> Desa Binaan
+                            </label>
+                            <Combobox
+                                :options="desaComboboxOptions"
+                                :model-value="selectedDesa"
+                                @update:model-value="onDesaChange"
+                                placeholder="Semua Desa Binaan"
+                                search-placeholder="Cari desa binaan..."
+                                class="w-full h-9 bg-white border-slate-200/90 text-xs font-semibold text-slate-800 shadow-2xs"
+                            />
+                        </div>
+
+                    </div>
                 </div>
 
                 <!-- Vue Data Table -->

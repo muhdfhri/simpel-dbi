@@ -24,7 +24,7 @@ class LaporanController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
-        $filters = $request->only(['search', 'status', 'kategori']);
+        $filters = $request->only(['search', 'status', 'kategori', 'mode_periode', 'bulan', 'tahun', 'tanggal_mulai', 'tanggal_selesai']);
 
         $desaId = $user->desa_id;
         $laporanPaginator = $this->laporanService->getLaporanByDesa(
@@ -70,12 +70,46 @@ class LaporanController extends Controller
                 'count' => $allDesaLaporan->where('kategori_id', $cat->id)->count(),
             ]);
 
+        $bulanOptions = [
+            ['value' => 'all', 'label' => 'Semua Bulan'],
+            ['value' => '01', 'label' => 'Januari'],
+            ['value' => '02', 'label' => 'Februari'],
+            ['value' => '03', 'label' => 'Maret'],
+            ['value' => '04', 'label' => 'April'],
+            ['value' => '05', 'label' => 'Mei'],
+            ['value' => '06', 'label' => 'Juni'],
+            ['value' => '07', 'label' => 'Juli'],
+            ['value' => '08', 'label' => 'Agustus'],
+            ['value' => '09', 'label' => 'September'],
+            ['value' => '10', 'label' => 'Oktober'],
+            ['value' => '11', 'label' => 'November'],
+            ['value' => '12', 'label' => 'Desember'],
+        ];
+
+        $dbYears = Laporan::when($desaId, fn ($q) => $q->where('desa_id', $desaId))
+            ->selectRaw('YEAR(created_at) as year')
+            ->distinct()
+            ->pluck('year')
+            ->filter()
+            ->toArray();
+
+        $currentYear = (int) date('Y');
+        $yearsList = array_unique(array_merge($dbYears, [$currentYear, $currentYear - 1, $currentYear - 2]));
+        rsort($yearsList);
+
+        $tahunOptions = array_merge(
+            [['value' => 'all', 'label' => 'Semua Tahun']],
+            array_map(fn ($y) => ['value' => (string) $y, 'label' => (string) $y], $yearsList)
+        );
+
         return Inertia::render('Desa/Laporan/Index', [
             'laporan' => $laporanPaginator,
             'stats' => $stats,
             'statusCounts' => $statusCounts,
             'filters' => $filters,
             'kategoriOptions' => $kategoriOptions,
+            'bulanOptions' => $bulanOptions,
+            'tahunOptions' => $tahunOptions,
         ]);
     }
 
@@ -186,13 +220,37 @@ class LaporanController extends Controller
     }
 
     /**
+     * Hapus berkas lampiran tertentu milik laporan desa.
+     */
+    public function destroyLampiran(Request $request, \App\Models\Lampiran $lampiran): RedirectResponse
+    {
+        $user = $request->user();
+        if ($lampiran->lampiranable_type === 'App\Models\Laporan') {
+            $laporan = \App\Models\Laporan::find($lampiran->lampiranable_id);
+            if ($laporan && $laporan->desa_id !== $user->desa_id) {
+                abort(403, 'Anda tidak memiliki hak akses untuk menghapus lampiran laporan ini.');
+            }
+            if ($laporan && !in_array($laporan->status, [StatusLaporan::DIAJUKAN, StatusLaporan::MINTA_PERBAIKAN])) {
+                abort(403, 'Laporan yang telah diverifikasi atau ditindaklanjuti tidak dapat diubah lampirannya.');
+            }
+        }
+
+        if ($lampiran->path && \Illuminate\Support\Facades\Storage::disk('public')->exists($lampiran->path)) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($lampiran->path);
+        }
+        $lampiran->delete();
+
+        return redirect()->back()->with('success', 'File lampiran berhasil dihapus.');
+    }
+
+    /**
      * Export daftar laporan desa ke format CSV via Maatwebsite Excel.
      */
     public function exportExcel(Request $request)
     {
         $user = $request->user();
         $desaId = $user->desa_id;
-        $filters = $request->only(['search', 'status', 'kategori']);
+        $filters = $request->only(['search', 'status', 'kategori', 'mode_periode', 'bulan', 'tahun', 'tanggal_mulai', 'tanggal_selesai']);
 
         $query = Laporan::query()->where('desa_id', $desaId);
 
@@ -200,7 +258,12 @@ class LaporanController extends Controller
             $s = $filters['search'];
             $query->where(function ($q) use ($s) {
                 $q->where('kode_tiket', 'like', "%{$s}%")
-                  ->orWhere('judul', 'like', "%{$s}%");
+                  ->orWhere('judul', 'like', "%{$s}%")
+                  ->orWhere('lokasi_detail', 'like', "%{$s}%")
+                  ->orWhereHas('kategoriRef', function ($catQuery) use ($s) {
+                      $catQuery->where('nama_kategori', 'like', "%{$s}%")
+                               ->orWhere('kode', 'like', "%{$s}%");
+                  });
             });
         }
 
@@ -212,6 +275,33 @@ class LaporanController extends Controller
             $query->where('kategori_id', $filters['kategori_id']);
         } elseif (!empty($filters['kategori']) && $filters['kategori'] !== 'all') {
             $query->where('kategori_id', $filters['kategori']);
+        }
+
+        $modePeriode = $filters['mode_periode'] ?? null;
+        if ($modePeriode === 'hari_ini') {
+            $query->whereDate('created_at', now()->today());
+        } elseif ($modePeriode === '7_hari') {
+            $query->whereBetween('created_at', [now()->subDays(6)->startOfDay(), now()->endOfDay()]);
+        } elseif ($modePeriode === '30_hari') {
+            $query->whereBetween('created_at', [now()->subDays(29)->startOfDay(), now()->endOfDay()]);
+        } elseif ($modePeriode === 'bulan_ini') {
+            $query->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year);
+        } elseif ($modePeriode === 'tahun_ini') {
+            $query->whereYear('created_at', now()->year);
+        } elseif ($modePeriode === 'rentang_tanggal' || !empty($filters['tanggal_mulai']) || !empty($filters['tanggal_selesai'])) {
+            if (!empty($filters['tanggal_mulai'])) {
+                $query->whereDate('created_at', '>=', $filters['tanggal_mulai']);
+            }
+            if (!empty($filters['tanggal_selesai'])) {
+                $query->whereDate('created_at', '<=', $filters['tanggal_selesai']);
+            }
+        } else {
+            if (!empty($filters['bulan']) && $filters['bulan'] !== 'all') {
+                $query->whereMonth('created_at', $filters['bulan']);
+            }
+            if (!empty($filters['tahun']) && $filters['tahun'] !== 'all') {
+                $query->whereYear('created_at', $filters['tahun']);
+            }
         }
 
         $laporanList = $query->with('kategoriRef')->latest('submitted_at')->get();
@@ -232,7 +322,7 @@ class LaporanController extends Controller
         $user = $request->user()->load(['desa.upt', 'desa.pimpasa']);
         $desa = $user->desa;
         $desaId = $user->desa_id;
-        $filters = $request->only(['search', 'status', 'kategori']);
+        $filters = $request->only(['search', 'status', 'kategori', 'mode_periode', 'bulan', 'tahun', 'tanggal_mulai', 'tanggal_selesai']);
 
         $query = Laporan::query()->where('desa_id', $desaId);
 
@@ -240,7 +330,12 @@ class LaporanController extends Controller
             $s = $filters['search'];
             $query->where(function ($q) use ($s) {
                 $q->where('kode_tiket', 'like', "%{$s}%")
-                  ->orWhere('judul', 'like', "%{$s}%");
+                  ->orWhere('judul', 'like', "%{$s}%")
+                  ->orWhere('lokasi_detail', 'like', "%{$s}%")
+                  ->orWhereHas('kategoriRef', function ($catQuery) use ($s) {
+                      $catQuery->where('nama_kategori', 'like', "%{$s}%")
+                               ->orWhere('kode', 'like', "%{$s}%");
+                  });
             });
         }
 
@@ -254,7 +349,65 @@ class LaporanController extends Controller
             $query->where('kategori_id', $filters['kategori']);
         }
 
+        $modePeriode = $filters['mode_periode'] ?? null;
+        if ($modePeriode === 'hari_ini') {
+            $query->whereDate('created_at', now()->today());
+        } elseif ($modePeriode === '7_hari') {
+            $query->whereBetween('created_at', [now()->subDays(6)->startOfDay(), now()->endOfDay()]);
+        } elseif ($modePeriode === '30_hari') {
+            $query->whereBetween('created_at', [now()->subDays(29)->startOfDay(), now()->endOfDay()]);
+        } elseif ($modePeriode === 'bulan_ini') {
+            $query->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year);
+        } elseif ($modePeriode === 'tahun_ini') {
+            $query->whereYear('created_at', now()->year);
+        } elseif ($modePeriode === 'rentang_tanggal' || !empty($filters['tanggal_mulai']) || !empty($filters['tanggal_selesai'])) {
+            if (!empty($filters['tanggal_mulai'])) {
+                $query->whereDate('created_at', '>=', $filters['tanggal_mulai']);
+            }
+            if (!empty($filters['tanggal_selesai'])) {
+                $query->whereDate('created_at', '<=', $filters['tanggal_selesai']);
+            }
+        } else {
+            if (!empty($filters['bulan']) && $filters['bulan'] !== 'all') {
+                $query->whereMonth('created_at', $filters['bulan']);
+            }
+            if (!empty($filters['tahun']) && $filters['tahun'] !== 'all') {
+                $query->whereYear('created_at', $filters['tahun']);
+            }
+        }
+
         $laporanRaw = $query->with('kategoriRef')->latest('submitted_at')->get();
+
+        $bulanNamaMap = [
+            '01' => 'Januari', '02' => 'Februari', '03' => 'Maret', '04' => 'April',
+            '05' => 'Mei', '06' => 'Juni', '07' => 'Juli', '08' => 'Agustus',
+            '09' => 'September', '10' => 'Oktober', '11' => 'November', '12' => 'Desember'
+        ];
+
+        $periodeText = 'Semua Periode';
+        if ($modePeriode === 'hari_ini') {
+            $periodeText = 'Hari Ini (' . date('d M Y') . ')';
+        } elseif ($modePeriode === '7_hari') {
+            $periodeText = '7 Hari Terakhir (' . now()->subDays(6)->format('d M') . ' - ' . date('d M Y') . ')';
+        } elseif ($modePeriode === '30_hari') {
+            $periodeText = '30 Hari Terakhir (' . now()->subDays(29)->format('d M') . ' - ' . date('d M Y') . ')';
+        } elseif ($modePeriode === 'bulan_ini') {
+            $periodeText = 'Bulan Ini (' . date('F Y') . ')';
+        } elseif ($modePeriode === 'tahun_ini') {
+            $periodeText = 'Tahun Ini (' . date('Y') . ')';
+        } elseif ($modePeriode === 'rentang_tanggal' || !empty($filters['tanggal_mulai']) || !empty($filters['tanggal_selesai'])) {
+            $f = !empty($filters['tanggal_mulai']) ? date('d M Y', strtotime($filters['tanggal_mulai'])) : 'Awal';
+            $t = !empty($filters['tanggal_selesai']) ? date('d M Y', strtotime($filters['tanggal_selesai'])) : 'Sekarang';
+            $periodeText = "{$f} s.d. {$t}";
+        } elseif (!empty($filters['bulan']) && $filters['bulan'] !== 'all' && !empty($filters['tahun']) && $filters['tahun'] !== 'all') {
+            $b = $bulanNamaMap[$filters['bulan']] ?? $filters['bulan'];
+            $periodeText = "{$b} {$filters['tahun']}";
+        } elseif (!empty($filters['bulan']) && $filters['bulan'] !== 'all') {
+            $b = $bulanNamaMap[$filters['bulan']] ?? $filters['bulan'];
+            $periodeText = "Bulan {$b}";
+        } elseif (!empty($filters['tahun']) && $filters['tahun'] !== 'all') {
+            $periodeText = "Tahun {$filters['tahun']}";
+        }
 
         $laporanList = $laporanRaw->map(function ($item) {
             $st = is_object($item->status) ? $item->status->value : $item->status;
@@ -275,6 +428,7 @@ class LaporanController extends Controller
             'uptNama' => $desa?->upt?->nama ?? 'Kanim UPT Imigrasi Pembina',
             'pimpasaNama' => $desa?->pimpasa?->name ?? 'Tim Pembina PIMPASA',
             'userName' => $user->name,
+            'periodeText' => $periodeText,
             'tanggalCetak' => date('d F Y, H:i'),
         ]);
 

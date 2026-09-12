@@ -230,17 +230,9 @@ const kategoriDonutOptions = computed(() => ({
     },
 }));
 
-// Default Reports fallback jika props kosong
+// Reports List (From Database Props)
 const reportsList = computed(() => {
-    if (props.recentLaporan && props.recentLaporan.length > 0) {
-        return props.recentLaporan.slice(0, 20);
-    }
-    return [
-        { id: 1, kode: 'LP-2026-000102', judul: 'Laporan Dugaan Penampungan PMI Non-Prosedural', kategori: 'Indikasi TPPO/PMI', status: 'diverifikasi', tanggal: '2 Jam lalu' },
-        { id: 2, kode: 'LP-2026-000101', judul: 'Pendataan Keberadaan WNA Asing di Wilayah Pesisir', kategori: 'Laporan WNA', status: 'ditindaklanjuti', tanggal: '4 Jam lalu' },
-        { id: 3, kode: 'LP-2026-000099', judul: 'Pelaksanaan Penyuluhan Kesadaran Hukum Migrasi', kategori: 'Kegiatan Pembinaan', status: 'diajukan', tanggal: '1 Hari lalu' },
-        { id: 4, kode: 'LP-2026-000095', judul: 'Permohonan Klarifikasi Dokumen Administrasi Desa', kategori: 'Insidentil', status: 'minta_perbaikan', tanggal: '2 Hari lalu' },
-    ];
+    return props.recentLaporan ?? [];
 });
 
 const getStatusBadge = (status: string) => {
@@ -426,28 +418,35 @@ const getStatusLabel = (status: string) => {
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100 bg-white">
-                                <tr v-for="item in reportsList" :key="item.id" class="hover:bg-slate-50/70 transition-colors">
-                                    <td class="py-3 px-4 text-center font-sans tabular-nums text-slate-900 font-bold">
-                                        {{ item.id }}
-                                    </td>
-                                    <td class="py-3 px-5 font-sans tabular-nums font-bold text-slate-900">
-                                        {{ item.kode }}
-                                    </td>
-                                    <td class="py-3 px-5 font-bold text-slate-900 leading-snug">
-                                        {{ item.judul }}
-                                    </td>
-                                    <td class="py-3 px-5 text-slate-700">
-                                        <span class="inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-semibold uppercase tracking-wider border border-slate-200/80">
-                                            {{ item.kategori }}
-                                        </span>
-                                    </td>
-                                    <td class="py-3 px-5 whitespace-nowrap">
-                                        <span :class="['px-2.5 py-1 rounded-full text-[11px] font-semibold border', getStatusBadge(item.status)]">
-                                            {{ getStatusLabel(item.status) }}
-                                        </span>
-                                    </td>
-                                    <td class="py-3 px-5 text-center text-slate-500 font-sans tabular-nums font-medium whitespace-nowrap">
-                                        {{ item.tanggal }}
+                                <template v-if="reportsList.length > 0">
+                                    <tr v-for="item in reportsList" :key="item.id" class="hover:bg-slate-50/70 transition-colors">
+                                        <td class="py-3 px-4 text-center font-sans tabular-nums text-slate-900 font-bold">
+                                            {{ item.id }}
+                                        </td>
+                                        <td class="py-3 px-5 font-sans tabular-nums font-bold text-slate-900">
+                                            {{ item.kode }}
+                                        </td>
+                                        <td class="py-3 px-5 font-bold text-slate-900 leading-snug">
+                                            {{ item.judul }}
+                                        </td>
+                                        <td class="py-3 px-5 text-slate-700">
+                                            <span class="inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-semibold uppercase tracking-wider border border-slate-200/80">
+                                                {{ item.kategori }}
+                                            </span>
+                                        </td>
+                                        <td class="py-3 px-5 whitespace-nowrap">
+                                            <span :class="['px-2.5 py-1 rounded-full text-[11px] font-semibold border', getStatusBadge(item.status)]">
+                                                {{ getStatusLabel(item.status) }}
+                                            </span>
+                                        </td>
+                                        <td class="py-3 px-5 text-center text-slate-500 font-sans tabular-nums font-medium whitespace-nowrap">
+                                            {{ item.tanggal }}
+                                        </td>
+                                    </tr>
+                                </template>
+                                <tr v-else>
+                                    <td colspan="6" class="py-8 text-center text-slate-500 text-xs font-medium">
+                                        Belum ada laporan kejadian terbaru di wilayah ini.
                                     </td>
                                 </tr>
                             </tbody>

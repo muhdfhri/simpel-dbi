@@ -135,14 +135,18 @@
             <tr>
                 <td width="15%"><strong>Filter Satker UPT</strong></td>
                 <td width="35%">: {{ $filterUptNama }}</td>
-                <td width="15%"><strong>Dicetak Pada</strong></td>
+                <td width="15%"><strong>Tanggal Cetak</strong></td>
                 <td width="35%">: {{ $tanggalCetak }}</td>
             </tr>
             <tr>
                 <td><strong>Filter Status SLA</strong></td>
                 <td>: {{ $filterSlaStatusNama }}</td>
+                <td><strong>Periode Filter</strong></td>
+                <td>: {{ $periodeText ?? 'Semua Periode' }}</td>
+            </tr>
+            <tr>
                 <td><strong>Dicetak Oleh</strong></td>
-                <td>: {{ $pimpinanNama }} (Admin Kanwil)</td>
+                <td colspan="3">: {{ $pimpinanNama }} (Admin Kanwil)</td>
             </tr>
         </table>
     </div>

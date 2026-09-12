@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
-
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 
@@ -149,10 +149,9 @@ class PasswordResetOtpController extends Controller
         $request->validate([
             'email' => 'required|email|exists:users,email',
             'token' => 'required|string',
-            'password' => 'required|string|min:8|confirmed',
+            'password' => ['required', 'string', Password::min(8)->mixedCase()->numbers()->symbols(), 'confirmed'],
         ], [
             'password.required' => 'Kata sandi baru wajib diisi.',
-            'password.min' => 'Kata sandi minimal 8 karakter.',
             'password.confirmed' => 'Konfirmasi kata sandi tidak cocok.',
         ]);
 

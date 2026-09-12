@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
+import { notify } from '@/lib/toast';
+import PasswordStrengthMeter from '@/components/common/PasswordStrengthMeter.vue';
 import AppLayout from '@/components/layout/AppLayout.vue';
 import {
     User,
@@ -223,9 +225,6 @@ const submitNotifications = () => {
                                     placeholder="081234567890"
                                     class="h-9.5 text-xs bg-white border-slate-200 text-slate-900 focus-visible:ring-slate-900 px-3.5 w-full"
                                 />
-                                <p class="text-[11px] text-slate-500 leading-normal pt-0.5">
-                                    Digunakan untuk menerima pemberitahuan instan saat Perangkat Desa mengirim laporan baru.
-                                </p>
                                 <span v-if="profileForm.errors.kontak" class="text-[11px] text-red-600 block mt-1">
                                     {{ profileForm.errors.kontak }}
                                 </span>
@@ -361,6 +360,7 @@ const submitNotifications = () => {
                                     placeholder="••••••••"
                                     class="h-9.5 text-xs bg-white border-slate-200 text-slate-900 focus-visible:ring-slate-900 px-3.5 w-full"
                                 />
+                                <PasswordStrengthMeter :password="passwordForm.new_password" />
                                 <span v-if="passwordForm.errors.new_password" class="text-[11px] text-red-600 block mt-1">
                                     {{ passwordForm.errors.new_password }}
                                 </span>

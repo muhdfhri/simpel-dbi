@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/components/layout/AppLayout.vue';
+import PasswordStrengthMeter from '@/components/common/PasswordStrengthMeter.vue';
 import {
     User,
     Building2,
@@ -338,6 +339,7 @@ const submitNotifications = () => {
                                     placeholder="••••••••"
                                     class="h-9.5 text-xs bg-white border-slate-200 text-slate-900 focus-visible:ring-slate-900 px-3.5 w-full"
                                 />
+                                <PasswordStrengthMeter :password="passwordForm.new_password" />
                                 <span v-if="passwordForm.errors.new_password" class="text-[11px] text-red-600 block mt-1">
                                     {{ passwordForm.errors.new_password }}
                                 </span>

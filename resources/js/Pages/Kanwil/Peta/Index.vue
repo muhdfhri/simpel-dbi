@@ -235,7 +235,6 @@ const renderMarkers = () => {
             <div style="font-family: Inter, sans-serif; padding: 6px; min-width: 210px;">
                 <div style="font-weight: bold; font-size: 13px; color: #0f172a;">${d.nama}</div>
                 <div style="font-size: 11px; color: #64748b; margin-top: 2px;">${d.upt_nama}</div>
-                <div style="margin-top: 4px; font-size: 11px; font-weight: 600; color: #033566;">Pengampu: ${d.pimpasa_name}</div>
                 <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 4px; font-size: 11px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span style="color: #64748b; font-weight: 500;">Total Laporan:</span>

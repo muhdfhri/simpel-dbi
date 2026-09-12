@@ -23,6 +23,7 @@ class UserSeeder extends Seeder
             'password' => Hash::make('password123'),
             'role' => UserRole::DESA,
             'desa_id' => $desa?->id,
+            'upt_id' => $desa?->upt_id ?? $upt?->id,
             'kontak' => '081234567890',
             'is_active' => true,
         ]);
@@ -35,6 +36,7 @@ class UserSeeder extends Seeder
             'password' => Hash::make('password123'),
             'role' => UserRole::PIMPASA,
             'upt_id' => $upt?->id,
+            'desa_id' => $desa?->id,
             'nip' => '198501012010011001',
             'golongan' => 'Penata (III/c)',
             'kontak' => '081298765432',

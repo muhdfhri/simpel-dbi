@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\MasterDataService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -17,6 +18,12 @@ class MasterDataController extends Controller
     public function __construct(
         protected MasterDataService $masterDataService
     ) {}
+
+    private function getPasswordRule(bool $required = true): array
+    {
+        $rule = Password::min(8)->mixedCase()->numbers()->symbols();
+        return $required ? ['required', $rule] : ['nullable', $rule];
+    }
 
     public function index(Request $request): Response
     {
@@ -75,7 +82,7 @@ class MasterDataController extends Controller
             'nip' => 'nullable|string|max:30|unique:users,nip',
             'golongan' => 'nullable|string|max:50',
             'kontak' => 'nullable|string|max:30',
-            'password' => 'required|string|min:6',
+            'password' => $this->getPasswordRule(true),
         ]);
 
         $this->masterDataService->createKanwilUser($validated);
@@ -91,7 +98,7 @@ class MasterDataController extends Controller
             'nip' => 'nullable|string|max:30|unique:users,nip,' . $user->id,
             'golongan' => 'nullable|string|max:50',
             'kontak' => 'nullable|string|max:30',
-            'password' => 'nullable|string|min:6',
+            'password' => $this->getPasswordRule(false),
         ]);
 
         $this->masterDataService->updateKanwilUser($user, $validated);
@@ -153,10 +160,10 @@ class MasterDataController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:150',
             'email' => 'required|email|unique:users,email',
-            'nip' => 'required|string|max:30|unique:users,nip',
-            'golongan' => 'required|string|max:50',
+            'nip' => 'nullable|string|max:30|unique:users,nip',
+            'golongan' => 'nullable|string|max:50',
             'upt_id' => 'required|exists:upt,id',
-            'password' => 'required|string|min:6',
+            'password' => $this->getPasswordRule(true),
         ]);
 
         $this->masterDataService->createPimpasaUser($validated);
@@ -169,10 +176,10 @@ class MasterDataController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:150',
             'email' => 'required|email|unique:users,email,' . $user->id,
-            'nip' => 'required|string|max:30|unique:users,nip,' . $user->id,
-            'golongan' => 'required|string|max:50',
+            'nip' => 'nullable|string|max:30|unique:users,nip,' . $user->id,
+            'golongan' => 'nullable|string|max:50',
             'upt_id' => 'required|exists:upt,id',
-            'password' => 'nullable|string|min:6',
+            'password' => $this->getPasswordRule(false),
         ]);
 
         $this->masterDataService->updatePimpasaUser($user, $validated);
@@ -225,7 +232,7 @@ class MasterDataController extends Controller
             'email' => 'required|email|unique:users,email',
             'desa_id' => 'required|exists:desa_binaan,id',
             'kontak' => 'nullable|string|max:30',
-            'password' => 'required|string|min:6',
+            'password' => $this->getPasswordRule(true),
             'is_active' => 'nullable|boolean',
         ]);
 
@@ -241,7 +248,7 @@ class MasterDataController extends Controller
             'email' => 'required|email|unique:users,email,' . $user->id,
             'desa_id' => 'required|exists:desa_binaan,id',
             'kontak' => 'nullable|string|max:30',
-            'password' => 'nullable|string|min:6',
+            'password' => $this->getPasswordRule(false),
             'is_active' => 'nullable|boolean',
         ]);
 

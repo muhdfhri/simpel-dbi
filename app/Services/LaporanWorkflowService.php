@@ -61,41 +61,44 @@ class LaporanWorkflowService
                 'created_at' => now(),
             ]);
 
-            // 5. Kirim Notifikasi (In-App + ntfy + Email) ke Petugas PIMPASA Desa & UPT terkait
+            // 5. Kirim Notifikasi (In-App + ntfy + Email) ke SELURUH Petugas PIMPASA UPT/Desa Terkait
             $desaBinaan = \App\Models\DesaBinaan::with(['pimpasa', 'upt'])->find($user->desa_id);
             $targetUptId = $desaBinaan?->upt_id ?? $user->upt_id;
+            $pimpasaTargets = collect();
 
-            // Ambil seluruh user PIMPASA di bawah UPT pembina (atau seluruh PIMPASA jika upt_id belum diset)
-            $pimpasaTargets = User::where('role', 'pimpasa')
-                ->when($targetUptId, function ($query) use ($targetUptId) {
-                    $query->where(function ($q) use ($targetUptId) {
-                        $q->where('upt_id', $targetUptId)->orWhereNull('upt_id');
-                    });
-                })
-                ->get();
+            // A. Jika ada PIMPASA spesifik yang di-assign ke desa
+            if ($desaBinaan?->pimpasa) {
+                $pimpasaTargets->push($desaBinaan->pimpasa);
+            }
 
-            // Jika masih kosong, kirim ke seluruh PIMPASA
+            // B. Ambil SELURUH PIMPASA di UPT pembina desa tersebut
+            if ($targetUptId) {
+                $uptPimpasaList = User::where('role', 'pimpasa')->where('upt_id', $targetUptId)->get();
+                $pimpasaTargets = $pimpasaTargets->merge($uptPimpasaList);
+            }
+
+            // C. Jika UPT belum terset, ambil seluruh PIMPASA di database
             if ($pimpasaTargets->isEmpty()) {
                 $pimpasaTargets = User::where('role', 'pimpasa')->get();
             }
 
-            Notification::send(
-                $pimpasaTargets->unique('id'),
-                new \App\Notifications\LaporanNotification(
-                    title: 'Pengajuan Laporan Baru',
-                    message: "Desa " . ($desaBinaan?->nama ?? 'Binaan') . " mengajukan laporan baru: {$laporan->kode_tiket}.",
-                    type: 'info',
-                    url: "/pimpasa/verifikasi/{$laporan->id}",
-                    laporanId: $laporan->id,
-                    kodeTiket: $laporan->kode_tiket
-                )
-            );
+            foreach ($pimpasaTargets->unique('id') as $pimpasaTarget) {
+                $pimpasaTarget->notify(
+                    new \App\Notifications\LaporanNotification(
+                        title: 'Pengajuan Laporan Baru',
+                        message: "Desa " . ($desaBinaan?->nama ?? 'Binaan') . " mengajukan laporan baru: {$laporan->kode_tiket}.",
+                        type: 'info',
+                        url: "/pimpasa/verifikasi/{$laporan->id}",
+                        laporanId: $laporan->id,
+                        kodeTiket: $laporan->kode_tiket
+                    )
+                );
+            }
 
-            // Broadcast Notifikasi Realtime ke Seluruh Admin Kanwil Executive Monitoring
+            // Broadcast Notifikasi Realtime ke Admin Kanwil
             $kanwilUsers = User::where('role', 'kanwil')->get();
-            if ($kanwilUsers->isNotEmpty()) {
-                Notification::send(
-                    $kanwilUsers,
+            foreach ($kanwilUsers as $kanwilUser) {
+                $kanwilUser->notify(
                     new \App\Notifications\LaporanNotification(
                         title: 'Aduan Masuk Baru (Kanwil)',
                         message: "Desa " . ($desaBinaan?->nama ?? 'Binaan') . " (UPT " . ($desaBinaan?->upt?->nama ?? '-') . ") mengajukan aduan baru {$laporan->kode_tiket}.",
@@ -153,14 +156,15 @@ class LaporanWorkflowService
 
             // 4. Kirim Notifikasi (In-App + ntfy + Email) ke Petugas PIMPASA
             $desaBinaan = \App\Models\DesaBinaan::with(['pimpasa', 'upt'])->find($user->desa_id);
+            $targetUptId = $desaBinaan?->upt_id ?? $user->upt_id;
             $pimpasaTargets = collect();
 
             if ($desaBinaan?->pimpasa) {
                 $pimpasaTargets->push($desaBinaan->pimpasa);
             }
 
-            if ($pimpasaTargets->isEmpty() && $desaBinaan?->upt_id) {
-                $uptPimpasaUsers = User::where('role', 'pimpasa')->where('upt_id', $desaBinaan->upt_id)->get();
+            if ($targetUptId) {
+                $uptPimpasaUsers = User::where('role', 'pimpasa')->where('upt_id', $targetUptId)->get();
                 $pimpasaTargets = $pimpasaTargets->merge($uptPimpasaUsers);
             }
 
@@ -206,13 +210,48 @@ class LaporanWorkflowService
             $query->where('kategori_id', $filters['kategori']);
         }
 
+        // Filter Periode Waktu (Bulanan/Tahunan, Rentang Tanggal, Quick Presets)
+        $modePeriode = $filters['mode_periode'] ?? null;
+
+        if ($modePeriode === 'hari_ini') {
+            $query->whereDate('created_at', now()->today());
+        } elseif ($modePeriode === '7_hari') {
+            $query->whereBetween('created_at', [now()->subDays(6)->startOfDay(), now()->endOfDay()]);
+        } elseif ($modePeriode === '30_hari') {
+            $query->whereBetween('created_at', [now()->subDays(29)->startOfDay(), now()->endOfDay()]);
+        } elseif ($modePeriode === 'bulan_ini') {
+            $query->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year);
+        } elseif ($modePeriode === 'tahun_ini') {
+            $query->whereYear('created_at', now()->year);
+        } elseif ($modePeriode === 'rentang_tanggal' || !empty($filters['tanggal_mulai']) || !empty($filters['tanggal_selesai'])) {
+            if (!empty($filters['tanggal_mulai'])) {
+                $query->whereDate('created_at', '>=', $filters['tanggal_mulai']);
+            }
+            if (!empty($filters['tanggal_selesai'])) {
+                $query->whereDate('created_at', '<=', $filters['tanggal_selesai']);
+            }
+        } else {
+            // Filter bulan
+            if (! empty($filters['bulan']) && $filters['bulan'] !== 'all') {
+                $query->whereMonth('created_at', $filters['bulan']);
+            }
+            // Filter tahun
+            if (! empty($filters['tahun']) && $filters['tahun'] !== 'all') {
+                $query->whereYear('created_at', $filters['tahun']);
+            }
+        }
+
         // Filter pencarian kata kunci (search)
         if (! empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('kode_tiket', 'like', "%{$search}%")
                     ->orWhere('judul', 'like', "%{$search}%")
-                    ->orWhere('lokasi_detail', 'like', "%{$search}%");
+                    ->orWhere('lokasi_detail', 'like', "%{$search}%")
+                    ->orWhereHas('kategoriRef', function ($catQuery) use ($search) {
+                        $catQuery->where('nama_kategori', 'like', "%{$search}%")
+                            ->orWhere('kode', 'like', "%{$search}%");
+                    });
             });
         }
 

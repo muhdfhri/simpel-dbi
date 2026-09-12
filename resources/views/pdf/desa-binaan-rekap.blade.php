@@ -168,50 +168,33 @@
     <table class="data-table">
         <thead>
             <tr>
-                <th width="4%" style="text-align: center;">No</th>
-                <th width="12%">Kode Desa</th>
-                <th width="22%">Nama Desa Binaan</th>
-                <th width="18%">Wilayah Administratif</th>
+                <th width="5%" style="text-align: center;">No</th>
+                <th width="18%">Kode Desa</th>
+                <th width="32%">Nama Desa Binaan</th>
+                <th width="23%">Kabupaten / Kota</th>
                 <th width="22%">Perangkat Desa / Kontak</th>
-                <th width="10%" style="text-align: center;">Total Laporan</th>
-                <th width="12%">Status Kerawanan</th>
             </tr>
         </thead>
         <tbody>
             @forelse($desaList as $index => $item)
                 @php
                     $itemObj = (object) $item;
-                    $kerawananVal = $itemObj->indeks_kerawanan ?? 'rendah';
-                    $kerawananLabel = match($kerawananVal) {
-                        'tinggi' => 'Rentan / Aduan',
-                        'sedang' => 'Pembinaan Aktif',
-                        default => 'Kondusif / Aman'
-                    };
                 @endphp
                 <tr>
                     <td style="text-align: center; font-weight: bold;">{{ $index + 1 }}</td>
                     <td style="font-weight: bold; font-family: monospace;">{{ $itemObj->kode_desa ?? '-' }}</td>
                     <td><strong>{{ $itemObj->nama ?? '-' }}</strong></td>
                     <td>
-                        Kec. {{ $itemObj->kecamatan ?? '-' }}<br>
-                        <span style="color: #64748b; font-size: 8.5px;">{{ $itemObj->kabupaten ?? '-' }}</span>
+                        <strong>{{ $itemObj->kabupaten ?? '-' }}</strong>
                     </td>
                     <td>
                         <strong>{{ $itemObj->kepala_desa ?? '-' }}</strong><br>
                         <span style="color: #64748b; font-size: 8.5px;">{{ $itemObj->kontak ?? '-' }}</span>
                     </td>
-                    <td style="text-align: center; font-weight: bold;">
-                        {{ $itemObj->total_laporan ?? 0 }} Tiket
-                    </td>
-                    <td>
-                        <span class="badge badge-{{ strtolower($kerawananVal) }}">
-                            {{ $kerawananLabel }}
-                        </span>
-                    </td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="7" style="text-align: center; color: #94a3b8; padding: 20px;">
+                    <td colspan="5" style="text-align: center; color: #94a3b8; padding: 20px;">
                         Tidak ada data desa binaan yang ditemukan.
                     </td>
                 </tr>

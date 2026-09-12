@@ -269,7 +269,6 @@ const initMap = async () => {
         const popupContent = `
             <div style="font-family: Inter, sans-serif; padding: 6px; min-width: 220px;">
                 <div style="font-weight: 700; font-size: 13px; color: #0f172a;">${desa.nama}</div>
-                <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Petugas Pembina: <b>${desa.pimpasa_name}</b></div>
                 <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 4px; font-size: 11px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span style="color: #64748b; font-weight: 500;">Total Laporan Desa:</span>

@@ -26,12 +26,9 @@ class DesaBinaanExport implements FromCollection, WithHeadings, ShouldAutoSize, 
             'NO',
             'KODE DESA',
             'NAMA DESA BINAAN',
-            'KECAMATAN',
             'KABUPATEN / KOTA',
             'PERANGKAT DESA / KONTAK',
-            'TOTAL LAPORAN',
-            'LAPORAN SELESAI',
-            'STATUS KERAWANAN',
+            'SATKER UPT IMIGRASI',
         ];
     }
 
@@ -40,25 +37,15 @@ class DesaBinaanExport implements FromCollection, WithHeadings, ShouldAutoSize, 
         $this->rowNumber++;
 
         $itemObj = (object) $item;
-        $kerawananVal = $itemObj->indeks_kerawanan ?? 'rendah';
-        $kerawananLabel = match($kerawananVal) {
-            'tinggi' => 'Rentan / Aduan Aktif',
-            'sedang' => 'Pembinaan Aktif',
-            default => 'Kondusif / Aman'
-        };
-
         $kontakStr = !empty($itemObj->kontak) ? " ({$itemObj->kontak})" : '';
 
         return [
             $this->rowNumber,
             $itemObj->kode_desa ?? '-',
             $itemObj->nama ?? '-',
-            $itemObj->kecamatan ?? '-',
             $itemObj->kabupaten ?? '-',
             ($itemObj->kepala_desa ?? '-') . $kontakStr,
-            ($itemObj->total_laporan ?? 0) . ' Tiket',
-            ($itemObj->laporan_selesai ?? 0) . ' Selesai',
-            $kerawananLabel,
+            $itemObj->upt_nama ?? '-',
         ];
     }
 

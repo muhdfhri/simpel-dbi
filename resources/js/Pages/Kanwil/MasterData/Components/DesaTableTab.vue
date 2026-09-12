@@ -319,15 +319,6 @@ const resetFilter = () => {
                             </div>
                         </th>
 
-                        <th @click="toggleSort('pimpasa')" class="px-6 py-3.5 cursor-pointer hover:bg-slate-200/60 transition-colors select-none">
-                            <div class="flex items-center gap-1.5">
-                                <span>PIMPASA Penanggung Jawab</span>
-                                <ArrowUp v-if="sortField === 'pimpasa' && sortOrder === 'asc'" :size="13" class="text-slate-900" />
-                                <ArrowDown v-else-if="sortField === 'pimpasa' && sortOrder === 'desc'" :size="13" class="text-slate-900" />
-                                <ArrowUpDown v-else :size="13" class="text-slate-300" />
-                            </div>
-                        </th>
-
                         <th @click="toggleSort('status')" class="px-6 py-3.5 text-center cursor-pointer hover:bg-slate-200/60 transition-colors select-none">
                             <div class="flex items-center justify-center gap-1.5">
                                 <span>Status</span>
@@ -353,7 +344,6 @@ const resetFilter = () => {
                             </div>
                         </td>
                         <td class="px-6 py-4 text-slate-500 font-medium">{{ d.upt?.nama || '-' }}</td>
-                        <td class="px-6 py-4 text-slate-500 font-medium">{{ d.pimpasa?.name || 'Belum Di-assign' }}</td>
                         <td class="px-6 py-4 text-center">
                             <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border bg-emerald-50 text-emerald-700 border-emerald-200">
                                 {{ d.status_terkini }}
@@ -416,7 +406,7 @@ const resetFilter = () => {
                         <span>{{ editingDesa ? 'Edit Desa Binaan' : 'Tambah Desa Binaan Baru' }}</span>
                     </DialogTitle>
                     <DialogDescription class="text-xs text-slate-500 leading-relaxed font-normal pt-0.5">
-                        Isi rincian nama desa, koordinat geospasial, dan tentukan Satker UPT Pembina & Personel PIMPASA pengampu.
+                        Isi rincian nama desa, koordinat geospasial, dan tentukan Satker UPT Pembina.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -463,16 +453,6 @@ const resetFilter = () => {
                             :options="uptComboboxOptions"
                             placeholder="Pilih Satker UPT Imigrasi..."
                             searchPlaceholder="Cari Kanim UPT..."
-                        />
-                    </div>
-
-                    <div>
-                        <Label class="font-semibold text-slate-800 text-xs tracking-tight block mb-1.5">PIMPASA Penanggung Jawab (Searchable)</Label>
-                        <Combobox
-                            v-model="desaForm.pimpasa_id"
-                            :options="pimpasaComboboxOptions"
-                            placeholder="Cari & Pilih Personel PIMPASA..."
-                            searchPlaceholder="Ketik Nama atau NIP PIMPASA..."
                         />
                     </div>
 

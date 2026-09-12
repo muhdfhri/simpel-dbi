@@ -152,6 +152,12 @@
                 <td width="35%">: {{ $tanggalCetak }} WIB</td>
             </tr>
             <tr>
+                <td><strong>Periode Filter</strong></td>
+                <td>: {{ $periodeText ?? 'Semua Periode' }}</td>
+                <td><strong>Petugas Pencetak</strong></td>
+                <td>: {{ $pimpasaNama }}</td>
+            </tr>
+            <tr>
                 <td><strong>Resolution Rate</strong></td>
                 <td>: {{ $rekap['resolution_rate'] ?? 0 }}%</td>
                 <td><strong>Total Agregat</strong></td>
@@ -159,9 +165,7 @@
             </tr>
             <tr>
                 <td><strong>SLA Respon</strong></td>
-                <td>: {{ $rekap['avg_response_hours'] ?? 0 }} Jam</td>
-                <td><strong>Laporan Selesai</strong></td>
-                <td>: {{ $rekap['laporan_selesai'] ?? 0 }} Tiket ({{ $rekap['laporan_proses'] ?? 0 }} Proses)</td>
+                <td colspan="3">: {{ $rekap['avg_response_hours'] ?? 0 }} Jam (Laporan Selesai: {{ $rekap['laporan_selesai'] ?? 0 }} Tiket)</td>
             </tr>
         </table>
     </div>

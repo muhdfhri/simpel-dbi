@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/dialog';
 import Combobox from '@/components/ui/combobox/Combobox.vue';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal.vue';
+import PasswordStrengthMeter from '@/components/common/PasswordStrengthMeter.vue';
 import { notify } from '@/lib/toast';
 
 interface DesaUserProps {
@@ -456,16 +457,18 @@ const resetFilter = () => {
                                 </SelectContent>
                             </Select>
                         </div>
-                        <div>
-                            <Label class="font-semibold text-slate-800 text-xs tracking-tight block mb-1.5">Password Login {{ editingDesaUser ? '(Isi jika ubah)' : '' }}</Label>
-                            <Input
-                                type="password"
-                                v-model="desaUserForm.password"
-                                :required="!editingDesaUser"
-                                placeholder="******"
-                                class="h-9 px-3.5 rounded-md border-slate-300 text-xs shadow-2xs font-sans"
-                            />
-                        </div>
+                    <div>
+                        <Label class="font-semibold text-slate-800 text-xs tracking-tight block mb-1.5">Password Login {{ editingDesaUser ? '(Isi jika ubah)' : '' }}</Label>
+                        <Input
+                            type="password"
+                            v-model="desaUserForm.password"
+                            :required="!editingDesaUser"
+                            placeholder="******"
+                            class="h-9 px-3.5 rounded-md border-slate-300 text-xs shadow-2xs font-sans"
+                        />
+                    </div>
+
+                    <PasswordStrengthMeter :password="desaUserForm.password" />
                     </div>
 
                     <DialogFooter class="-mx-6 sm:-mx-7 px-6 sm:px-7 pt-4 mt-5 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 bg-transparent">

@@ -160,6 +160,10 @@
                 <td><strong>Total Antrean</strong></td>
                 <td>: {{ count($laporanList) }} Tiket Laporan</td>
             </tr>
+            <tr>
+                <td><strong>Periode Filter</strong></td>
+                <td colspan="3">: {{ $periodeText ?? 'Semua Periode' }}</td>
+            </tr>
         </table>
     </div>
 
