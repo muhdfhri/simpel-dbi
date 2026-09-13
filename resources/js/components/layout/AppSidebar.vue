@@ -83,7 +83,7 @@ const navigationGroups = computed(() => {
             { id: 'verifikasi', name: 'Worklist Verifikasi', href: '/pimpasa/verifikasi', icon: CheckSquare, permission: 'laporan.verify' },
             { id: 'tindak-lanjut', name: 'Disposisi & Tindak Lanjut', href: '/pimpasa/tindak-lanjut', icon: FileCheck2, permission: 'laporan.followup' },
             { id: 'kegiatan', name: 'Kegiatan Pembinaan', href: '/pimpasa/kegiatan', icon: FolderKanban, permission: 'kegiatan.create' },
-            { id: 'desa-binaan', name: 'Daftar Desa Binaan', href: '/pimpasa/desa-binaan', icon: Building2 },
+            { id: 'desa-binaan', name: 'Manajemen Desa Binaan', href: '/pimpasa/desa-binaan', icon: Building2 },
             { id: 'rekapitulasi', name: 'Rekapitulasi Satker', href: '/pimpasa/rekapitulasi', icon: BarChart3 }
         );
     } else if (role === 'kanwil') {

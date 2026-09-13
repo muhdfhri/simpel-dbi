@@ -13,7 +13,15 @@ class KegiatanPembinaanRequest extends FormRequest
 
     public function rules(): array
     {
-        $isCreate = $this->isMethod('post') && !$this->header('X-HTTP-Method-Override');
+        $kegiatan = $this->route('kegiatan');
+        $isUpdate = $this->isMethod('put') || $this->isMethod('patch') || $this->header('X-HTTP-Method-Override') === 'PUT' || $kegiatan !== null;
+
+        $hasExistingLampiran = false;
+        if ($kegiatan instanceof \App\Models\KegiatanPembinaan) {
+            $hasExistingLampiran = $kegiatan->lampiranList()->count() > 0;
+        }
+
+        $lampiranRequired = !$isUpdate && !$hasExistingLampiran;
 
         return [
             'judul' => ['required', 'string', 'max:255'],
@@ -26,7 +34,7 @@ class KegiatanPembinaanRequest extends FormRequest
             'status' => ['required', 'string', 'in:terjadwal,selesai,dibatalkan'],
             'lokasi' => ['required', 'string', 'max:255'],
             'ringkasan_materi' => ['required', 'string'],
-            'lampiran_files' => [$isCreate ? 'required' : 'nullable', 'array', 'min:1'],
+            'lampiran_files' => [$lampiranRequired ? 'required' : 'nullable', 'array'],
             'lampiran_files.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:2048'],
         ];
     }

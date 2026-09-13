@@ -54,6 +54,10 @@ const faqs = [
         a: 'Buka menu <strong>Worklist Verifikasi</strong>, pilih tiket laporan yang berstatus <em>Diajukan</em>, periksa kesesuaian lokasi geospasial serta kelengkapan lampiran foto. Klik tombol <strong>Verifikasi Laporan</strong> lalu pilih salah satu dari tiga keputusan: <em>Diverifikasi PIMPASA</em>, <em>Minta Perbaikan</em>, atau <em>Ditolak</em>.'
     },
     {
+        q: 'Bagaimana cara menambah atau mengelola akun login Perangkat Desa Binaan?',
+        a: 'Buka menu <strong>Daftar Desa Binaan</strong>, lalu pilih sub-tab <strong>Akun Perangkat Desa</strong>. Klik tombol <strong>+ Tambah Perangkat Desa</strong> untuk mendaftarkan akun baru, atau klik icon Edit/Hapus pada baris tabel untuk mengubah password dan kontak pengelola desa binaan Anda.'
+    },
+    {
         q: 'Kapan laporan diteruskan ke Tim UPT Imigrasi untuk penanganan lapangan?',
         a: 'Setelah Anda menyetujui laporan dengan status <strong>Diverifikasi PIMPASA</strong>, sistem akan otomatis memasukkan tiket laporan ke dalam daftar <strong>Disposisi & Tindak Lanjut UPT</strong> agar tim operasional UPT dapat menangani insiden secara teknis di lapangan.'
     },
@@ -67,7 +71,7 @@ const faqs = [
     },
     {
         q: 'Bagaimana cara mencatat kegiatan pembinaan keimigrasian di desa?',
-        a: 'Gunakan menu <strong>Kegiatan Pembinaan</strong>. Klik <strong>+ Tambah Kegiatan Baru</strong> untuk mengunggah dokumentasi sosialisasi, edukasi keimigrasian, atau inspeksi lapangan bersama perangkat desa.'
+        a: 'Gunakan menu <strong>Kegiatan Pembinaan</strong>. Klik <strong>+ Tambah Agenda Pembinaan</strong> untuk mencatat sosialisasi, penyuluhan keimigrasian, edukasi masyarakat, hingga koordinasi stakeholder bersama perangkat desa.'
     }
 ];
 </script>
@@ -369,8 +373,23 @@ const faqs = [
                                             <span>Direktori & Profil Desa Binaan</span>
                                         </h3>
                                         <p class="text-[11px] text-slate-500 leading-relaxed">
-                                            Melalui menu <strong>Daftar Desa Binaan</strong>, Anda dapat memantau seluruh wilayah desa pengampuan UPT, kontak Perangkat Desa terdaftar, jumlah akumulasi tiket, serta status indeks kerawanan (<em>Aman / Pembinaan Aktif / Rentan</em>).
+                                            Melalui menu <strong>Daftar Desa Binaan</strong> (Tab <em>Direktori Desa Binaan</em>), Anda dapat memantau seluruh wilayah desa pengampuan UPT, kontak Perangkat Desa terdaftar, serta status indeks kerawanan (<em>Aman / Pembinaan Aktif / Rentan</em>).
                                         </p>
+                                    </div>
+
+                                    <div class="p-3.5 border border-slate-200 rounded-lg bg-slate-50/50 space-y-1">
+                                        <h3 class="font-bold text-slate-900 flex items-center gap-2">
+                                            <UserCheck :size="15" class="text-slate-700 shrink-0" />
+                                            <span>Kelola Akun User Perangkat Desa (CRUD User)</span>
+                                        </h3>
+                                        <p class="text-[11px] text-slate-500 leading-relaxed">
+                                            Melalui menu <strong>Daftar Desa Binaan</strong> (Tab <em>Akun Perangkat Desa</em>), Petugas PIMPASA dapat melakukan manajemen pengguna secara mandiri untuk perangkat desa di bawah UPT-nya:
+                                        </p>
+                                        <ul class="list-disc list-inside text-[11px] text-slate-600 space-y-0.5 pt-1 pl-1">
+                                            <li><strong>+ Tambah Perangkat Desa</strong>: Mendaftarkan akun login baru dengan memilih desa binaan yang diampu.</li>
+                                            <li><strong>Edit Data & Reset Password</strong>: Memperbarui nama, email, nomor WA/kontak, atau mengubah password login jika perangkat desa lupa password.</li>
+                                            <li><strong>Hapus Akun User</strong>: Menghapus akses login akun perangkat desa yang sudah tidak bertugas lagi.</li>
+                                        </ul>
                                     </div>
 
                                     <div class="p-3.5 border border-slate-200 rounded-lg bg-slate-50/50 space-y-1">
@@ -379,7 +398,7 @@ const faqs = [
                                             <span>Kegiatan Pembinaan & Sosialisasi</span>
                                         </h3>
                                         <p class="text-[11px] text-slate-500 leading-relaxed">
-                                            Menu <strong>Kegiatan Pembinaan</strong> digunakan untuk mencatat dan mendokumentasikan agenda rutin PIMPASA seperti sosialisasi aturan keimigrasian, penyuluhan pencegahan TPPO, dan rapat koordinasi bersama perangkat desa.
+                                            Menu <strong>Kegiatan Pembinaan</strong> digunakan untuk mencatat dan mendokumentasikan agenda rutin PIMPASA seperti sosialisasi aturan keimigrasian, penyuluhan pencegahan TPPO, edukasi masyarakat, hingga rapat koordinasi stakeholder.
                                         </p>
                                     </div>
                                 </div>

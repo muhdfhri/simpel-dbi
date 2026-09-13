@@ -143,10 +143,13 @@ Route::middleware('auth')->group(function () {
         Route::get('/kegiatan/export-pdf', [\App\Http\Controllers\Pimpasa\KegiatanPembinaanController::class, 'exportPdf'])->name('kegiatan.export-pdf');
         Route::get('/kegiatan/export-excel', [\App\Http\Controllers\Pimpasa\KegiatanPembinaanController::class, 'exportExcel'])->name('kegiatan.export-excel');
 
-        // Menu 4: Daftar Desa Binaan
+        // Menu 4: Daftar Desa Binaan & CRUD Perangkat Desa
         Route::get('/desa-binaan', [\App\Http\Controllers\Pimpasa\DesaBinaanController::class, 'index'])->name('desabinaan.index');
         Route::get('/desa-binaan/export-excel', [\App\Http\Controllers\Pimpasa\DesaBinaanController::class, 'exportExcel'])->name('desabinaan.export-excel');
         Route::get('/desa-binaan/export-pdf', [\App\Http\Controllers\Pimpasa\DesaBinaanController::class, 'exportPdf'])->name('desabinaan.export-pdf');
+        Route::post('/desa-binaan/perangkat-desa', [\App\Http\Controllers\Pimpasa\DesaBinaanController::class, 'storePerangkatDesa'])->name('desabinaan.perangkat.store');
+        Route::put('/desa-binaan/perangkat-desa/{user}', [\App\Http\Controllers\Pimpasa\DesaBinaanController::class, 'updatePerangkatDesa'])->name('desabinaan.perangkat.update');
+        Route::delete('/desa-binaan/perangkat-desa/{user}', [\App\Http\Controllers\Pimpasa\DesaBinaanController::class, 'destroyPerangkatDesa'])->name('desabinaan.perangkat.destroy');
 
         // Menu 5: Rekapitulasi Satker UPT
         Route::get('/rekapitulasi', [\App\Http\Controllers\Pimpasa\RekapitulasiSatkerController::class, 'index'])->name('rekapitulasi.index');

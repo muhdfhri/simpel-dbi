@@ -11,6 +11,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Trust Cloudflare proxies to avoid 429 Too Many Requests and IP mismatches
+        $middleware->trustProxies(at: '*');
+
         // Inertia: handle Inertia requests di setiap web request
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,

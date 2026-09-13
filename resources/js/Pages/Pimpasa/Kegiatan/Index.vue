@@ -140,13 +140,29 @@ const desaFormMultiOptions = computed(() => [
     }))
 ]);
 
+const JENIS_PEMBINAAN_LIST = [
+    'Sosialisasi',
+    'Penyuluhan Keimigrasian',
+    'Edukasi Masyarakat',
+    'Koordinasi Stakeholder',
+    'Kunjungan Ke Komunitas Warga',
+    'Pelayanan Keimigrasian',
+    'Pengawasan dan Penindakan Keimigrasian',
+    'Intelijen Keimigrasian',
+    'Bakti Sosial',
+    'Program Ketahanan Pangan',
+];
+
+const jenisFormComboboxOptions = computed(() =>
+    JENIS_PEMBINAAN_LIST.map(j => ({ value: j, label: j }))
+);
+
 const jenisComboboxOptions = computed(() => [
     { value: 'all', label: `Semua Jenis (${props.stats.total_kegiatan ?? props.kegiatanList.length})` },
-    { value: 'Penyuluhan Hukum', label: `Penyuluhan Hukum (${props.stats.count_penyuluhan ?? 0})` },
-    { value: 'Layanan Simpatik', label: `Layanan Simpatik (${props.stats.count_simpatik ?? 0})` },
-    { value: 'Pembinaan Pemuda', label: `Pembinaan Pemuda (${props.stats.count_pemuda ?? 0})` },
-    { value: 'Sosialisasi TPPO', label: `Sosialisasi TPPO (${props.stats.count_tppo ?? 0})` },
-    { value: 'Inspeksi Lapangan', label: `Inspeksi Lapangan (${props.stats.count_inspeksi ?? 0})` },
+    ...JENIS_PEMBINAAN_LIST.map(j => ({
+        value: j,
+        label: j
+    }))
 ]);
 
 // Pagination (10 Data Per Halaman)
@@ -795,12 +811,12 @@ const getStatusBadge = (status: string) => {
 
                                 <div>
                                     <Label class="font-semibold text-slate-800 text-xs tracking-tight block mb-1.5">Jenis Pembinaan <span class="text-rose-500">*</span></Label>
-                                    <Input
+                                    <Combobox
                                         v-model="form.jenis_pembinaan"
-                                        type="text"
-                                        placeholder="misal: Penyuluhan Hukum"
-                                        class="h-9 px-3.5 rounded-md border-slate-300 text-xs focus:ring-2 focus:ring-primary/40 shadow-2xs font-sans"
-                                        required
+                                        :options="jenisFormComboboxOptions"
+                                        placeholder="Pilih Jenis Pembinaan..."
+                                        search-placeholder="Cari jenis pembinaan..."
+                                        class="w-full h-9 bg-white border-slate-300 shadow-2xs"
                                     />
                                     <p v-if="form.errors.jenis_pembinaan" class="text-[11px] text-rose-500 mt-1">{{ form.errors.jenis_pembinaan }}</p>
                                 </div>
