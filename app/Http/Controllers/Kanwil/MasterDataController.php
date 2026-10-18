@@ -325,4 +325,189 @@ class MasterDataController extends Controller
         $this->masterDataService->deleteKategoriLaporan($kategori);
         return redirect()->back()->with('success', 'Kategori Laporan berhasil dihapus.');
     }
+
+    // --- EXPORT MASTER DATA SYSTEM (EXCEL & PDF) ---
+    public function exportExcel(Request $request)
+    {
+        $type = $request->query('type', 'admin-kanwil');
+        $search = strtolower($request->query('search', ''));
+
+        if ($type === 'desa') {
+            $query = DesaBinaan::with(['upt', 'pimpasa']);
+            if ($search !== '') {
+                $query->where(function($q) use ($search) {
+                    $q->where('nama', 'like', "%{$search}%")
+                      ->orWhereHas('upt', fn($u) => $u->where('nama', 'like', "%{$search}%"))
+                      ->orWhereHas('pimpasa', fn($p) => $p->where('name', 'like', "%{$search}%"));
+                });
+            }
+            $itemList = $query->orderBy('nama', 'asc')->get();
+            $filename = 'master-data-desa-binaan-' . date('Y-m-d-His') . '.xlsx';
+
+            return \Maatwebsite\Excel\Facades\Excel::download(
+                new \App\Exports\MasterDataWilayahExport($itemList, 'desa'),
+                $filename,
+                \Maatwebsite\Excel\Excel::XLSX
+            );
+        } elseif ($type === 'upt') {
+            $query = Upt::withCount(['desaBinaanList', 'users']);
+            if ($search !== '') {
+                $query->where(function($q) use ($search) {
+                    $q->where('nama', 'like', "%{$search}%")
+                      ->orWhere('tipe', 'like', "%{$search}%");
+                });
+            }
+            $itemList = $query->orderBy('nama', 'asc')->get();
+            $filename = 'master-data-satker-upt-' . date('Y-m-d-His') . '.xlsx';
+
+            return \Maatwebsite\Excel\Facades\Excel::download(
+                new \App\Exports\MasterDataWilayahExport($itemList, 'upt'),
+                $filename,
+                \Maatwebsite\Excel\Excel::XLSX
+            );
+        }
+
+        if ($type === 'pimpasa') {
+            $query = User::where('role', 'pimpasa')->with(['upt']);
+            if ($search !== '') {
+                $query->where(function($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%")
+                      ->orWhere('nip', 'like', "%{$search}%")
+                      ->orWhereHas('upt', fn($u) => $u->where('nama', 'like', "%{$search}%"));
+                });
+            }
+            $userList = $query->orderBy('name', 'asc')->get();
+            $filename = 'master-data-petugas-pimpasa-' . date('Y-m-d-His') . '.xlsx';
+        } elseif ($type === 'user-desa') {
+            $query = User::where('role', 'desa')->with(['desa.upt']);
+            if ($search !== '') {
+                $query->where(function($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%")
+                      ->orWhereHas('desa', fn($d) => $d->where('nama', 'like', "%{$search}%"));
+                });
+            }
+            $userList = $query->orderBy('name', 'asc')->get();
+            $filename = 'master-data-perangkat-desa-' . date('Y-m-d-His') . '.xlsx';
+        } else {
+            $type = 'admin-kanwil';
+            $query = User::where('role', 'kanwil');
+            if ($search !== '') {
+                $query->where(function($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%")
+                      ->orWhere('nip', 'like', "%{$search}%");
+                });
+            }
+            $userList = $query->orderBy('name', 'asc')->get();
+            $filename = 'master-data-admin-kanwil-' . date('Y-m-d-His') . '.xlsx';
+        }
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\MasterDataUserExport($userList, $type),
+            $filename,
+            \Maatwebsite\Excel\Excel::XLSX
+        );
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $type = $request->query('type', 'admin-kanwil');
+        $search = strtolower($request->query('search', ''));
+        $pimpinanNama = $request->user()?->name ?? 'Administrator Kanwil';
+
+        if ($type === 'desa') {
+            $query = DesaBinaan::with(['upt', 'pimpasa']);
+            if ($search !== '') {
+                $query->where(function($q) use ($search) {
+                    $q->where('nama', 'like', "%{$search}%")
+                      ->orWhereHas('upt', fn($u) => $u->where('nama', 'like', "%{$search}%"))
+                      ->orWhereHas('pimpasa', fn($p) => $p->where('name', 'like', "%{$search}%"));
+                });
+            }
+            $itemList = $query->orderBy('nama', 'asc')->get();
+            $filename = 'master-data-desa-binaan-' . date('Y-m-d-His') . '.pdf';
+
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.master-data-wilayah', [
+                'itemList' => $itemList,
+                'subType' => 'desa',
+                'judulTipe' => 'Desa Binaan (DBI)',
+                'pimpinanNama' => $pimpinanNama,
+                'tanggalCetak' => date('d F Y, H:i'),
+            ])->setPaper('a4', 'portrait');
+
+            return $pdf->download($filename);
+        } elseif ($type === 'upt') {
+            $query = Upt::withCount(['desaBinaanList', 'users']);
+            if ($search !== '') {
+                $query->where(function($q) use ($search) {
+                    $q->where('nama', 'like', "%{$search}%")
+                      ->orWhere('tipe', 'like', "%{$search}%");
+                });
+            }
+            $itemList = $query->orderBy('nama', 'asc')->get();
+            $filename = 'master-data-satker-upt-' . date('Y-m-d-His') . '.pdf';
+
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.master-data-wilayah', [
+                'itemList' => $itemList,
+                'subType' => 'upt',
+                'judulTipe' => 'Satker UPT Imigrasi',
+                'pimpinanNama' => $pimpinanNama,
+                'tanggalCetak' => date('d F Y, H:i'),
+            ])->setPaper('a4', 'portrait');
+
+            return $pdf->download($filename);
+        }
+
+        if ($type === 'pimpasa') {
+            $judulTipe = 'Petugas PIMPASA';
+            $query = User::where('role', 'pimpasa')->with(['upt']);
+            if ($search !== '') {
+                $query->where(function($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%")
+                      ->orWhere('nip', 'like', "%{$search}%")
+                      ->orWhereHas('upt', fn($u) => $u->where('nama', 'like', "%{$search}%"));
+                });
+            }
+            $userList = $query->orderBy('name', 'asc')->get();
+            $filename = 'master-data-petugas-pimpasa-' . date('Y-m-d-His') . '.pdf';
+        } elseif ($type === 'user-desa') {
+            $judulTipe = 'Perangkat Desa';
+            $query = User::where('role', 'desa')->with(['desa.upt']);
+            if ($search !== '') {
+                $query->where(function($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%")
+                      ->orWhereHas('desa', fn($d) => $d->where('nama', 'like', "%{$search}%"));
+                });
+            }
+            $userList = $query->orderBy('name', 'asc')->get();
+            $filename = 'master-data-perangkat-desa-' . date('Y-m-d-His') . '.pdf';
+        } else {
+            $type = 'admin-kanwil';
+            $judulTipe = 'Administrator Kanwil';
+            $query = User::where('role', 'kanwil');
+            if ($search !== '') {
+                $query->where(function($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%")
+                      ->orWhere('nip', 'like', "%{$search}%");
+                });
+            }
+            $userList = $query->orderBy('name', 'asc')->get();
+            $filename = 'master-data-admin-kanwil-' . date('Y-m-d-His') . '.pdf';
+        }
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.master-data-pengguna', [
+            'userList' => $userList,
+            'userType' => $type,
+            'judulTipe' => $judulTipe,
+            'pimpinanNama' => $pimpinanNama,
+            'tanggalCetak' => date('d F Y, H:i'),
+        ])->setPaper('a4', 'portrait');
+
+        return $pdf->download($filename);
+    }
 }

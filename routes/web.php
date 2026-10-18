@@ -175,6 +175,8 @@ Route::middleware('auth')->group(function () {
 
         // Menu 1: Master Data System (171 Desa, 53 PIMPASA, 10 UPT)
         Route::get('/master-data', [\App\Http\Controllers\Kanwil\MasterDataController::class, 'index'])->name('masterdata.index');
+        Route::get('/master-data/export-excel', [\App\Http\Controllers\Kanwil\MasterDataController::class, 'exportExcel'])->name('masterdata.export-excel');
+        Route::get('/master-data/export-pdf', [\App\Http\Controllers\Kanwil\MasterDataController::class, 'exportPdf'])->name('masterdata.export-pdf');
         
         // CRUD Desa Binaan
         Route::post('/master-data/desa', [\App\Http\Controllers\Kanwil\MasterDataController::class, 'storeDesa'])->name('masterdata.desa.store');

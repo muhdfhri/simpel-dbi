@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import AppLayout from '@/components/layout/AppLayout.vue';
-import { Building2, Users, MapPin, UserCheck, ShieldCheck, Plus, Shield, Settings2, Globe2 } from 'lucide-vue-next';
+import { Building2, Users, MapPin, UserCheck, ShieldCheck, Plus, Shield, Settings2, Globe2, FileSpreadsheet, FileText } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import DesaTableTab from './Components/DesaTableTab.vue';
@@ -154,6 +154,14 @@ const handleTambahAction = () => {
     } else if (activeSubTab.value === 'kategori') {
         kategoriTableRef.value?.openAddModal();
     }
+};
+
+const exportExcel = () => {
+    window.location.href = `/kanwil/master-data/export-excel?type=${activeSubTab.value}`;
+};
+
+const exportPdf = () => {
+    window.open(`/kanwil/master-data/export-pdf?type=${activeSubTab.value}`, '_blank');
 };
 
 const getTambahButtonLabel = computed(() => {
@@ -437,8 +445,32 @@ const getTambahButtonLabel = computed(() => {
 
                     </div>
 
-                    <!-- Action Button (Tambah Data) -->
-                    <div v-if="activeSubTab !== 'permissions'" class="w-full sm:w-auto shrink-0">
+                    <!-- Action Buttons (Export Excel & PDF + Tambah Data) -->
+                    <div v-if="activeSubTab !== 'permissions'" class="w-full sm:w-auto shrink-0 flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                        
+                        <!-- Export Excel & PDF Buttons (Tampil di Manajemen Pengguna & Wilayah) -->
+                        <template v-if="activeCategory === 'pengguna' || activeCategory === 'wilayah'">
+                            <Button
+                                @click="exportExcel"
+                                variant="outline"
+                                size="sm"
+                                class="h-9 px-3.5 border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100/90 text-emerald-800 font-semibold rounded-md text-xs flex items-center gap-2 shadow-2xs transition-all cursor-pointer"
+                            >
+                                <FileSpreadsheet :size="15" class="text-emerald-700 shrink-0" />
+                                <span>Export Excel</span>
+                            </Button>
+
+                            <Button
+                                @click="exportPdf"
+                                variant="outline"
+                                size="sm"
+                                class="h-9 px-3.5 border-rose-200 bg-rose-50/70 hover:bg-rose-100/90 text-rose-800 font-semibold rounded-md text-xs flex items-center gap-2 shadow-2xs transition-all cursor-pointer"
+                            >
+                                <FileText :size="15" class="text-rose-700 shrink-0" />
+                                <span>Export PDF</span>
+                            </Button>
+                        </template>
+
                         <Button
                             @click="handleTambahAction"
                             class="w-full sm:w-auto bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-md shadow-xs gap-1.5 shrink-0 cursor-pointer h-9 px-4 justify-center"
